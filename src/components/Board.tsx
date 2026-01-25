@@ -13,6 +13,7 @@ export function Board() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('todo');
   const [filter, setFilter] = useState<'all' | 'clifton' | 'sage'>('all');
+  const [activeView, setActiveView] = useState<'kanban' | 'list' | 'calendar'>('kanban');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -152,118 +153,132 @@ export function Board() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gradient-dark bg-grid flex items-center justify-center">
-        <div className="text-slate-400 flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-          Loading...
-        </div>
+      <div className="loading">
+        <div className="loading-spinner" />
+        <span>Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-dark bg-grid">
-      {/* Header */}
-      <header className="glass border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-full mx-auto px-6 py-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-xl animate-float">
-                🌿
-              </div>
+    <div className="app-container">
+      <div className="main-content">
+        {/* Header */}
+        <header className="header">
+          <div className="header-top">
+            {/* Logo & Title */}
+            <div className="header-title">
+              <div className="logo">🌿</div>
               <div>
-                <h1 className="text-xl font-bold text-slate-100 text-glow-cyan">Sage Tasks</h1>
-                <p className="text-xs text-slate-500">Project Management</p>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="flex items-center gap-3">
-              <div className="glass-card px-4 py-2 rounded-lg flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-slate-100">{totalTasks}</div>
-                  <div className="text-xs text-slate-500">Total</div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-lg font-bold text-emerald-400">{sageTaskCount}</div>
-                  <div className="text-xs text-slate-500">🌿 Sage</div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-lg font-bold text-cyan-400">{cliftonTaskCount}</div>
-                  <div className="text-xs text-slate-500">👤 Clifton</div>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center">
-                  <div className="text-lg font-bold text-green-400">{completedCount}</div>
-                  <div className="text-xs text-slate-500">✅ Done</div>
-                </div>
+                <h1>Sage Tasks</h1>
+                <p className="header-subtitle">Project Management</p>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
-              {/* Filter */}
+            <div className="header-actions">
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as typeof filter)}
-                className="input-dark text-sm"
+                className="filter-select"
               >
                 <option value="all">All Tasks</option>
-                <option value="sage">🌿 Sage Tasks</option>
-                <option value="clifton">👤 Clifton Tasks</option>
+                <option value="sage">🌿 Sage</option>
+                <option value="clifton">👤 Clifton</option>
               </select>
 
-              {/* New Task Button */}
               <button
                 onClick={() => handleAddTask('todo')}
-                className="btn-primary flex items-center gap-2"
+                className="btn btn-primary"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>New Task</span>
+                New Task
               </button>
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* Board */}
-      <main className="p-6 overflow-x-auto">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-5 min-w-max pb-4">
-            {board.columnOrder.map((columnId) => {
-              const column = board.columns[columnId];
-              const tasks = getFilteredTasks(column.taskIds);
-
-              return (
-                <Column
-                  key={column.id}
-                  column={column}
-                  tasks={tasks}
-                  onAddTask={handleAddTask}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                />
-              );
-            })}
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            <div className="stat-item">
+              <div className="stat-value">{totalTasks}</div>
+              <div className="stat-label">Total</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{sageTaskCount}</div>
+              <div className="stat-label">🌿 Sage</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#3b82f6' }}>{cliftonTaskCount}</div>
+              <div className="stat-label">👤 Clifton</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{completedCount}</div>
+              <div className="stat-label">✅ Done</div>
+            </div>
           </div>
-        </DragDropContext>
-      </main>
 
-      {/* Modal */}
-      <TaskModal
-        isOpen={isModalOpen}
-        task={editingTask}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingTask(null);
-        }}
-        onSave={handleSaveTask}
-      />
+          {/* View Tabs */}
+          <div className="nav-tabs">
+            <button
+              className={`nav-tab ${activeView === 'kanban' ? 'active' : ''}`}
+              onClick={() => setActiveView('kanban')}
+            >
+              Kanban
+            </button>
+            <button
+              className={`nav-tab ${activeView === 'list' ? 'active' : ''}`}
+              onClick={() => setActiveView('list')}
+            >
+              List
+            </button>
+            <button
+              className={`nav-tab ${activeView === 'calendar' ? 'active' : ''}`}
+              onClick={() => setActiveView('calendar')}
+            >
+              Calendar
+            </button>
+          </div>
+        </header>
+
+        {/* Board */}
+        <main className="board">
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="board-columns">
+              {board.columnOrder.map((columnId) => {
+                const column = board.columns[columnId];
+                const tasks = getFilteredTasks(column.taskIds);
+
+                return (
+                  <Column
+                    key={column.id}
+                    column={column}
+                    tasks={tasks}
+                    onAddTask={handleAddTask}
+                    onEditTask={handleEditTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                );
+              })}
+            </div>
+          </DragDropContext>
+        </main>
+
+        {/* Modal */}
+        <TaskModal
+          isOpen={isModalOpen}
+          task={editingTask}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingTask(null);
+          }}
+          onSave={handleSaveTask}
+        />
+      </div>
     </div>
   );
 }

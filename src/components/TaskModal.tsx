@@ -98,83 +98,80 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass rounded-2xl shadow-2xl w-full max-w-lg border border-white/10 animate-fadeIn">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-slate-100">
+        <div className="modal-header">
+          <h2 className="modal-title">
             {task ? 'Edit Task' : 'New Task'}
           </h2>
           <button 
             onClick={onClose} 
-            className="text-slate-400 hover:text-slate-200 p-1 hover:bg-white/5 rounded-lg transition-colors"
+            className="btn btn-ghost btn-icon"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-white/10">
-          {(['details', 'subtasks', 'comments'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === tab 
-                  ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-400/5' 
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tab === 'details' && '📝 Details'}
-              {tab === 'subtasks' && `✅ Subtasks (${subtasks.length})`}
-              {tab === 'comments' && `💬 Comments (${comments.length})`}
-            </button>
-          ))}
+        <div className="modal-tabs">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`modal-tab ${activeTab === 'details' ? 'active' : ''}`}
+          >
+            📝 Details
+          </button>
+          <button
+            onClick={() => setActiveTab('subtasks')}
+            className={`modal-tab ${activeTab === 'subtasks' ? 'active' : ''}`}
+          >
+            ✅ Subtasks ({subtasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('comments')}
+            className={`modal-tab ${activeTab === 'comments' ? 'active' : ''}`}
+          >
+            💬 Comments ({comments.length})
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="p-4 max-h-[400px] overflow-y-auto">
+          <div className="modal-body">
             {/* Details Tab */}
             {activeTab === 'details' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Title *
-                  </label>
+              <>
+                <div className="form-group">
+                  <label className="form-label">Title *</label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full input-dark"
+                    className="input"
                     placeholder="Task title..."
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">
-                    Description
-                  </label>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full input-dark resize-none"
+                    className="input"
                     placeholder="Task description..."
                     rows={3}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Assign To
-                    </label>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Assign To</label>
                     <select
                       value={assignee}
                       onChange={(e) => setAssignee(e.target.value as Assignee)}
-                      className="w-full input-dark"
+                      className="input"
                     >
                       <option value="unassigned">Unassigned</option>
                       <option value="clifton">👤 Clifton</option>
@@ -182,14 +179,12 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Priority
-                    </label>
+                  <div className="form-group">
+                    <label className="form-label">Priority</label>
                     <select
                       value={priority}
                       onChange={(e) => setPriority(e.target.value as Task['priority'])}
-                      className="w-full input-dark"
+                      className="input"
                     >
                       <option value="low">🟢 Low</option>
                       <option value="medium">🟡 Medium</option>
@@ -198,15 +193,13 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Project
-                    </label>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Project</label>
                     <select
                       value={project}
                       onChange={(e) => setProject(e.target.value)}
-                      className="w-full input-dark"
+                      className="input"
                     >
                       <option value="">No project</option>
                       {projects.map((p) => (
@@ -215,78 +208,70 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">
-                      Due Date
-                    </label>
+                  <div className="form-group">
+                    <label className="form-label">Due Date</label>
                     <input
                       type="date"
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full input-dark"
+                      className="input"
                     />
                   </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Subtasks Tab */}
             {activeTab === 'subtasks' && (
-              <div className="space-y-3">
-                <div className="flex gap-2">
+              <>
+                <div className="add-input-row">
                   <input
                     type="text"
                     value={newSubtask}
                     onChange={(e) => setNewSubtask(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
-                    className="flex-1 input-dark"
+                    className="input"
                     placeholder="Add a subtask..."
                   />
                   <button
                     type="button"
                     onClick={addSubtask}
-                    className="btn-primary px-4"
+                    className="btn btn-primary"
                   >
                     Add
                   </button>
                 </div>
 
                 {subtasks.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
+                  <div className="empty-state">
                     <p>No subtasks yet</p>
-                    <p className="text-sm">Break down this task into smaller steps</p>
+                    <p>Break down this task into smaller steps</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="subtask-list">
                     {subtasks.map((subtask) => (
-                      <div
-                        key={subtask.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-white/5 group"
-                      >
+                      <div key={subtask.id} className="subtask-item">
                         <button
                           type="button"
                           onClick={() => toggleSubtask(subtask.id)}
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            subtask.completed 
-                              ? 'bg-cyan-500 border-cyan-500' 
-                              : 'border-slate-500 hover:border-cyan-400'
-                          }`}
+                          className={`subtask-checkbox ${subtask.completed ? 'checked' : ''}`}
                         >
                           {subtask.completed && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           )}
                         </button>
-                        <span className={`flex-1 text-sm ${subtask.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                        <span className={`subtask-title ${subtask.completed ? 'completed' : ''}`}>
                           {subtask.title}
                         </span>
                         <button
                           type="button"
                           onClick={() => removeSubtask(subtask.id)}
-                          className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                          className="btn btn-ghost btn-icon subtask-delete"
+                          style={{ width: '24px', height: '24px' }}
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -294,70 +279,68 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     ))}
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Comments Tab */}
             {activeTab === 'comments' && (
-              <div className="space-y-3">
-                <div className="flex gap-2">
+              <>
+                <div className="add-input-row">
                   <input
                     type="text"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addComment())}
-                    className="flex-1 input-dark"
+                    className="input"
                     placeholder="Add a comment..."
                   />
                   <button
                     type="button"
                     onClick={addComment}
-                    className="btn-primary px-4"
+                    className="btn btn-primary"
                   >
                     Post
                   </button>
                 </div>
 
                 {comments.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
+                  <div className="empty-state">
                     <p>No comments yet</p>
-                    <p className="text-sm">Start a discussion about this task</p>
+                    <p>Start a discussion about this task</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="comment-list">
                     {comments.map((comment) => (
-                      <div key={comment.id} className="p-3 rounded-lg bg-white/5">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-medium ${
-                            comment.author === 'sage' ? 'text-emerald-400' : 'text-cyan-400'
-                          }`}>
+                      <div key={comment.id} className="comment-item">
+                        <div className="comment-header">
+                          <span className={`comment-author ${comment.author}`}>
                             {comment.author === 'sage' ? '🌿 Sage' : '👤 Clifton'}
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className="comment-date">
                             {new Date(comment.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-300">{comment.content}</p>
+                        <p className="comment-content">{comment.content}</p>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-white/10 flex gap-3">
+          <div className="modal-footer">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-lg text-slate-300 bg-white/5 hover:bg-white/10 transition-colors"
+              className="btn btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 btn-primary py-2.5"
+              className="btn btn-primary"
             >
               {task ? 'Save Changes' : 'Create Task'}
             </button>
