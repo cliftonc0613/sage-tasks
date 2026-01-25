@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { useQuery, useMutation } from 'convex/react';
+import { useRouter } from 'next/navigation';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Column } from './Column';
@@ -43,7 +44,7 @@ export function Board() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('todo');
   const [filter, setFilter] = useState<'all' | 'clifton' | 'sage'>('all');
-  const [activeView, setActiveView] = useState<'kanban' | 'list' | 'calendar'>('kanban');
+  const router = useRouter();
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -210,21 +211,18 @@ export function Board() {
 
           {/* View Tabs */}
           <div className="nav-tabs">
-            <button
-              className={`nav-tab ${activeView === 'kanban' ? 'active' : ''}`}
-              onClick={() => setActiveView('kanban')}
-            >
+            <button className="nav-tab active">
               Kanban
             </button>
             <button
-              className={`nav-tab ${activeView === 'list' ? 'active' : ''}`}
-              onClick={() => setActiveView('list')}
+              className="nav-tab"
+              onClick={() => router.push('/list')}
             >
               List
             </button>
             <button
-              className={`nav-tab ${activeView === 'calendar' ? 'active' : ''}`}
-              onClick={() => setActiveView('calendar')}
+              className="nav-tab"
+              onClick={() => router.push('/calendar')}
             >
               Calendar
             </button>
