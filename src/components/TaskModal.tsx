@@ -49,6 +49,7 @@ const projects = [
   'AI Trade School',
   'AI Boardroom',
   'CT Web Design Shop',
+  'CliftonAI YouTube Scripts',
   'Sage Tasks',
   'Other',
 ];
