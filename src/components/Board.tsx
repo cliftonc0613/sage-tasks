@@ -39,7 +39,6 @@ export function Board() {
     const destColumn = board.columns[destination.droppableId];
 
     if (sourceColumn.id === destColumn.id) {
-      // Moving within same column
       const newTaskIds = Array.from(sourceColumn.taskIds);
       newTaskIds.splice(source.index, 1);
       newTaskIds.splice(destination.index, 0, draggableId);
@@ -52,7 +51,6 @@ export function Board() {
         },
       });
     } else {
-      // Moving between columns
       const sourceTaskIds = Array.from(sourceColumn.taskIds);
       sourceTaskIds.splice(source.index, 1);
       
@@ -100,7 +98,6 @@ export function Board() {
 
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'createdAt'> & { id?: string }) => {
     if (taskData.id) {
-      // Editing existing task
       setBoard({
         ...board,
         tasks: {
@@ -108,11 +105,11 @@ export function Board() {
           [taskData.id]: {
             ...board.tasks[taskData.id],
             ...taskData,
+            updatedAt: new Date().toISOString(),
           },
         },
       });
     } else {
-      // Creating new task
       const newTask = createTask(
         taskData.title,
         taskData.description,
@@ -121,6 +118,8 @@ export function Board() {
         taskData.project,
         taskData.dueDate
       );
+      newTask.subtasks = taskData.subtasks || [];
+      newTask.comments = taskData.comments || [];
 
       setBoard({
         ...board,
@@ -146,59 +145,85 @@ export function Board() {
       });
   };
 
+  const totalTasks = Object.keys(board.tasks).length;
   const sageTaskCount = Object.values(board.tasks).filter(t => t.assignee === 'sage').length;
   const cliftonTaskCount = Object.values(board.tasks).filter(t => t.assignee === 'clifton').length;
+  const completedCount = board.columns['done']?.taskIds.length || 0;
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen bg-gradient-dark bg-grid flex items-center justify-center">
+        <div className="text-slate-400 flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+          Loading...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+    <div className="min-h-screen bg-gradient-dark bg-grid">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-full mx-auto px-4 py-4">
+      <header className="glass border-b border-white/10 sticky top-0 z-40">
+        <div className="max-w-full mx-auto px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
+            {/* Logo */}
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🌿</span>
-              <h1 className="text-xl font-bold text-gray-900">Sage Tasks</h1>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-xl animate-float">
+                🌿
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-100 text-glow-cyan">Sage Tasks</h1>
+                <p className="text-xs text-slate-500">Project Management</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              {/* Stats */}
-              <div className="flex gap-3 text-sm">
-                <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">
-                  🌿 Sage: {sageTaskCount}
-                </span>
-                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                  👤 Clifton: {cliftonTaskCount}
-                </span>
+            {/* Stats */}
+            <div className="flex items-center gap-3">
+              <div className="glass-card px-4 py-2 rounded-lg flex items-center gap-4">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-slate-100">{totalTasks}</div>
+                  <div className="text-xs text-slate-500">Total</div>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                  <div className="text-lg font-bold text-emerald-400">{sageTaskCount}</div>
+                  <div className="text-xs text-slate-500">🌿 Sage</div>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                  <div className="text-lg font-bold text-cyan-400">{cliftonTaskCount}</div>
+                  <div className="text-xs text-slate-500">👤 Clifton</div>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-400">{completedCount}</div>
+                  <div className="text-xs text-slate-500">✅ Done</div>
+                </div>
               </div>
+            </div>
 
+            {/* Actions */}
+            <div className="flex items-center gap-3">
               {/* Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Filter:</span>
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as typeof filter)}
-                  className="border rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Tasks</option>
-                  <option value="sage">🌿 Sage&apos;s Tasks</option>
-                  <option value="clifton">👤 Clifton&apos;s Tasks</option>
-                </select>
-              </div>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="input-dark text-sm"
+              >
+                <option value="all">All Tasks</option>
+                <option value="sage">🌿 Sage Tasks</option>
+                <option value="clifton">👤 Clifton Tasks</option>
+              </select>
 
               {/* New Task Button */}
               <button
                 onClick={() => handleAddTask('todo')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="btn-primary flex items-center gap-2"
               >
-                <span>➕</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
                 <span>New Task</span>
               </button>
             </div>
@@ -207,9 +232,9 @@ export function Board() {
       </header>
 
       {/* Board */}
-      <main className="p-4 overflow-x-auto">
+      <main className="p-6 overflow-x-auto">
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 min-w-max">
+          <div className="flex gap-5 min-w-max pb-4">
             {board.columnOrder.map((columnId) => {
               const column = board.columns[columnId];
               const tasks = getFilteredTasks(column.taskIds);
