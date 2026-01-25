@@ -1,8 +1,34 @@
 'use client';
 
-import { Task } from '@/types';
 import { Draggable } from '@hello-pangea/dnd';
-import { calculateProgress } from '@/lib/store';
+
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+interface Comment {
+  id: string;
+  author: "clifton" | "sage" | "system";
+  content: string;
+  createdAt: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  assignee: "clifton" | "sage" | "unassigned";
+  priority: "low" | "medium" | "high";
+  status: string;
+  project?: string;
+  dueDate?: string;
+  subtasks: Subtask[];
+  comments: Comment[];
+  order: number;
+  createdAt: string;
+}
 
 interface TaskCardProps {
   task: Task;
@@ -23,6 +49,12 @@ const assigneeInitials = {
   unassigned: '?',
 };
 
+function calculateProgress(subtasks: Subtask[]): number {
+  if (subtasks.length === 0) return 0;
+  const completed = subtasks.filter(s => s.completed).length;
+  return Math.round((completed / subtasks.length) * 100);
+}
+
 export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
   const progress = calculateProgress(task.subtasks);
   const hasSubtasks = task.subtasks.length > 0;
@@ -34,7 +66,7 @@ export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
   };
 
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={task._id} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -56,7 +88,7 @@ export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
             </div>
             <div className="task-card-actions">
               <button
-                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                onClick={(e) => { e.stopPropagation(); onDelete(task._id); }}
                 className="btn btn-ghost btn-icon"
                 title="Delete"
                 style={{ width: '24px', height: '24px' }}

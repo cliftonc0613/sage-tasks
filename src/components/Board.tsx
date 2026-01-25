@@ -1,33 +1,50 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { BoardState, Task } from '@/types';
-import { loadBoard, saveBoard, createTask, initialState } from '@/lib/store';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { Column } from './Column';
 import { TaskModal } from './TaskModal';
 
+type Task = {
+  _id: Id<"tasks">;
+  title: string;
+  description: string;
+  assignee: "clifton" | "sage" | "unassigned";
+  priority: "low" | "medium" | "high";
+  status: "backlog" | "todo" | "in-progress" | "review" | "done";
+  project?: string;
+  dueDate?: string;
+  subtasks: { id: string; title: string; completed: boolean }[];
+  comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
+  order: number;
+  createdAt: string;
+  updatedAt?: string;
+};
+
+const columns = [
+  { id: 'todo', title: 'To Do' },
+  { id: 'in-progress', title: 'In Progress' },
+  { id: 'review', title: 'Review' },
+  { id: 'done', title: 'Done' },
+] as const;
+
 export function Board() {
-  const [board, setBoard] = useState<BoardState>(initialState);
+  const tasks = useQuery(api.tasks.list);
+  const createTask = useMutation(api.tasks.create);
+  const updateTask = useMutation(api.tasks.update);
+  const moveTask = useMutation(api.tasks.move);
+  const deleteTask = useMutation(api.tasks.remove);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('todo');
   const [filter, setFilter] = useState<'all' | 'clifton' | 'sage'>('all');
   const [activeView, setActiveView] = useState<'kanban' | 'list' | 'calendar'>('kanban');
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    setBoard(loadBoard());
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      saveBoard(board);
-    }
-  }, [board, mounted]);
-
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -36,37 +53,11 @@ export function Board() {
       destination.index === source.index
     ) return;
 
-    const sourceColumn = board.columns[source.droppableId];
-    const destColumn = board.columns[destination.droppableId];
-
-    if (sourceColumn.id === destColumn.id) {
-      const newTaskIds = Array.from(sourceColumn.taskIds);
-      newTaskIds.splice(source.index, 1);
-      newTaskIds.splice(destination.index, 0, draggableId);
-
-      setBoard({
-        ...board,
-        columns: {
-          ...board.columns,
-          [sourceColumn.id]: { ...sourceColumn, taskIds: newTaskIds },
-        },
-      });
-    } else {
-      const sourceTaskIds = Array.from(sourceColumn.taskIds);
-      sourceTaskIds.splice(source.index, 1);
-      
-      const destTaskIds = Array.from(destColumn.taskIds);
-      destTaskIds.splice(destination.index, 0, draggableId);
-
-      setBoard({
-        ...board,
-        columns: {
-          ...board.columns,
-          [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
-          [destColumn.id]: { ...destColumn, taskIds: destTaskIds },
-        },
-      });
-    }
+    await moveTask({
+      id: draggableId as Id<"tasks">,
+      newStatus: destination.droppableId as Task['status'],
+      newOrder: destination.index,
+    });
   };
 
   const handleAddTask = (columnId: string) => {
@@ -80,78 +71,66 @@ export function Board() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     if (!confirm('Delete this task?')) return;
-
-    const newTasks = { ...board.tasks };
-    delete newTasks[taskId];
-
-    const newColumns = { ...board.columns };
-    for (const colId of Object.keys(newColumns)) {
-      newColumns[colId] = {
-        ...newColumns[colId],
-        taskIds: newColumns[colId].taskIds.filter((id) => id !== taskId),
-      };
-    }
-
-    setBoard({ ...board, tasks: newTasks, columns: newColumns });
+    await deleteTask({ id: taskId as Id<"tasks"> });
   };
 
-  const handleSaveTask = (taskData: Omit<Task, 'id' | 'createdAt'> & { id?: string }) => {
+  const handleSaveTask = async (taskData: {
+    id?: string;
+    title: string;
+    description: string;
+    assignee: "clifton" | "sage" | "unassigned";
+    priority: "low" | "medium" | "high";
+    project?: string;
+    dueDate?: string;
+    subtasks: { id: string; title: string; completed: boolean }[];
+    comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
+  }) => {
     if (taskData.id) {
-      setBoard({
-        ...board,
-        tasks: {
-          ...board.tasks,
-          [taskData.id]: {
-            ...board.tasks[taskData.id],
-            ...taskData,
-            updatedAt: new Date().toISOString(),
-          },
-        },
+      await updateTask({
+        id: taskData.id as Id<"tasks">,
+        title: taskData.title,
+        description: taskData.description,
+        assignee: taskData.assignee,
+        priority: taskData.priority,
+        project: taskData.project,
+        dueDate: taskData.dueDate,
+        subtasks: taskData.subtasks,
+        comments: taskData.comments,
       });
     } else {
-      const newTask = createTask(
-        taskData.title,
-        taskData.description,
-        taskData.assignee,
-        taskData.priority,
-        taskData.project,
-        taskData.dueDate
-      );
-      newTask.subtasks = taskData.subtasks || [];
-      newTask.comments = taskData.comments || [];
-
-      setBoard({
-        ...board,
-        tasks: { ...board.tasks, [newTask.id]: newTask },
-        columns: {
-          ...board.columns,
-          [targetColumn]: {
-            ...board.columns[targetColumn],
-            taskIds: [...board.columns[targetColumn].taskIds, newTask.id],
-          },
-        },
+      await createTask({
+        title: taskData.title,
+        description: taskData.description,
+        assignee: taskData.assignee,
+        priority: taskData.priority,
+        status: targetColumn as Task['status'],
+        project: taskData.project,
+        dueDate: taskData.dueDate,
+        subtasks: taskData.subtasks,
+        comments: taskData.comments,
       });
     }
   };
 
-  const getFilteredTasks = (taskIds: string[]) => {
-    return taskIds
-      .map((id) => board.tasks[id])
+  const getTasksForColumn = (columnId: string) => {
+    if (!tasks) return [];
+    return tasks
+      .filter((task) => task.status === columnId)
       .filter((task) => {
-        if (!task) return false;
         if (filter === 'all') return true;
         return task.assignee === filter;
-      });
+      })
+      .sort((a, b) => a.order - b.order);
   };
 
-  const totalTasks = Object.keys(board.tasks).length;
-  const sageTaskCount = Object.values(board.tasks).filter(t => t.assignee === 'sage').length;
-  const cliftonTaskCount = Object.values(board.tasks).filter(t => t.assignee === 'clifton').length;
-  const completedCount = board.columns['done']?.taskIds.length || 0;
+  const totalTasks = tasks?.length || 0;
+  const sageTaskCount = tasks?.filter(t => t.assignee === 'sage').length || 0;
+  const cliftonTaskCount = tasks?.filter(t => t.assignee === 'clifton').length || 0;
+  const completedCount = tasks?.filter(t => t.status === 'done').length || 0;
 
-  if (!mounted) {
+  if (tasks === undefined) {
     return (
       <div className="loading">
         <div className="loading-spinner" />
@@ -249,17 +228,16 @@ export function Board() {
         <main className="board">
           <DragDropContext onDragEnd={handleDragEnd}>
             <div className="board-columns">
-              {board.columnOrder.map((columnId) => {
-                const column = board.columns[columnId];
-                const tasks = getFilteredTasks(column.taskIds);
+              {columns.map((column) => {
+                const columnTasks = getTasksForColumn(column.id);
 
                 return (
                   <Column
                     key={column.id}
-                    column={column}
-                    tasks={tasks}
+                    column={{ id: column.id, title: column.title, taskIds: [] }}
+                    tasks={columnTasks as any}
                     onAddTask={handleAddTask}
-                    onEditTask={handleEditTask}
+                    onEditTask={handleEditTask as any}
                     onDeleteTask={handleDeleteTask}
                   />
                 );
@@ -271,12 +249,12 @@ export function Board() {
         {/* Modal */}
         <TaskModal
           isOpen={isModalOpen}
-          task={editingTask}
+          task={editingTask as any}
           onClose={() => {
             setIsModalOpen(false);
             setEditingTask(null);
           }}
-          onSave={handleSaveTask}
+          onSave={handleSaveTask as any}
         />
       </div>
     </div>

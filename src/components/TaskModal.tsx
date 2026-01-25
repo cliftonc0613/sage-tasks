@@ -1,14 +1,48 @@
 'use client';
 
-import { Task, Assignee, Subtask, Comment } from '@/types';
 import { useState, useEffect } from 'react';
-import { createSubtask, createComment } from '@/lib/store';
+
+interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+interface Comment {
+  id: string;
+  author: "clifton" | "sage" | "system";
+  content: string;
+  createdAt: string;
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  assignee: "clifton" | "sage" | "unassigned";
+  priority: "low" | "medium" | "high";
+  status: string;
+  project?: string;
+  dueDate?: string;
+  subtasks: Subtask[];
+  comments: Comment[];
+}
 
 interface TaskModalProps {
   isOpen: boolean;
   task?: Task | null;
   onClose: () => void;
-  onSave: (task: Omit<Task, 'id' | 'createdAt'> & { id?: string }) => void;
+  onSave: (task: {
+    id?: string;
+    title: string;
+    description: string;
+    assignee: "clifton" | "sage" | "unassigned";
+    priority: "low" | "medium" | "high";
+    project?: string;
+    dueDate?: string;
+    subtasks: Subtask[];
+    comments: Comment[];
+  }) => void;
 }
 
 const projects = [
@@ -19,11 +53,28 @@ const projects = [
   'Other',
 ];
 
+function createSubtask(title: string): Subtask {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    completed: false,
+  };
+}
+
+function createComment(content: string, author: "clifton" | "sage"): Comment {
+  return {
+    id: crypto.randomUUID(),
+    author,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assignee, setAssignee] = useState<Assignee>('unassigned');
-  const [priority, setPriority] = useState<Task['priority']>('medium');
+  const [assignee, setAssignee] = useState<"clifton" | "sage" | "unassigned">('unassigned');
+  const [priority, setPriority] = useState<"low" | "medium" | "high">('medium');
   const [project, setProject] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -60,7 +111,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      id: task?.id,
+      id: task?._id,
       title,
       description,
       assignee,
@@ -170,7 +221,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     <label className="form-label">Assign To</label>
                     <select
                       value={assignee}
-                      onChange={(e) => setAssignee(e.target.value as Assignee)}
+                      onChange={(e) => setAssignee(e.target.value as typeof assignee)}
                       className="input"
                     >
                       <option value="unassigned">Unassigned</option>
@@ -183,7 +234,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     <label className="form-label">Priority</label>
                     <select
                       value={priority}
-                      onChange={(e) => setPriority(e.target.value as Task['priority'])}
+                      onChange={(e) => setPriority(e.target.value as typeof priority)}
                       className="input"
                     >
                       <option value="low">🟢 Low</option>

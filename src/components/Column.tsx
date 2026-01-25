@@ -1,11 +1,31 @@
 'use client';
 
-import { Column as ColumnType, Task } from '@/types';
 import { Droppable } from '@hello-pangea/dnd';
 import { TaskCard } from './TaskCard';
 
+interface Column {
+  id: string;
+  title: string;
+  taskIds: string[];
+}
+
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  assignee: "clifton" | "sage" | "unassigned";
+  priority: "low" | "medium" | "high";
+  status: string;
+  project?: string;
+  dueDate?: string;
+  subtasks: { id: string; title: string; completed: boolean }[];
+  comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
+  order: number;
+  createdAt: string;
+}
+
 interface ColumnProps {
-  column: ColumnType;
+  column: Column;
   tasks: Task[];
   onAddTask: (columnId: string) => void;
   onEditTask: (task: Task) => void;
@@ -61,7 +81,7 @@ export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask }: C
             )}
             {tasks.map((task, index) => (
               <TaskCard
-                key={task.id}
+                key={task._id}
                 task={task}
                 index={index}
                 onEdit={onEditTask}
