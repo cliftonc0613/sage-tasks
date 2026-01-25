@@ -7,6 +7,7 @@ import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { Column } from './Column';
 import { TaskModal } from './TaskModal';
+import { Sidebar } from './Sidebar';
 
 type Task = {
   _id: Id<"tasks">;
@@ -132,15 +133,21 @@ export function Board() {
 
   if (tasks === undefined) {
     return (
-      <div className="loading">
-        <div className="loading-spinner" />
-        <span>Loading...</span>
+      <div className="app-container">
+        <Sidebar activePage="board" />
+        <div className="main-content">
+          <div className="loading">
+            <div className="loading-spinner" />
+            <span>Loading...</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="app-container">
+      <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}
         <header className="header">
