@@ -5,6 +5,8 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
 import { Sidebar } from '@/components/Sidebar';
+import { BottomNav } from '@/components/BottomNav';
+import { MobileHeader } from '@/components/MobileHeader';
 import { TaskModal } from '@/components/TaskModal';
 import { CommandPalette, useCommandPalette } from '@/components/CommandPalette';
 
@@ -104,6 +106,7 @@ export default function CalendarPage() {
 
   return (
     <div className="app-container">
+      <MobileHeader title="Calendar" onOpenCommandPalette={() => setCommandOpen(true)} />
       <Sidebar activePage="calendar" />
       <div className="main-content">
         {/* Header */}
@@ -201,6 +204,7 @@ export default function CalendarPage() {
         {/* Command Palette */}
         <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
+      <BottomNav />
     </div>
   );
 }

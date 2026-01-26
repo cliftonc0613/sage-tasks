@@ -5,6 +5,8 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Id } from '../../../convex/_generated/dataModel';
 import { Sidebar } from '@/components/Sidebar';
+import { BottomNav } from '@/components/BottomNav';
+import { MobileHeader } from '@/components/MobileHeader';
 import { TaskModal } from '@/components/TaskModal';
 import { CommandPalette, useCommandPalette } from '@/components/CommandPalette';
 
@@ -162,6 +164,7 @@ export default function ListPage() {
 
   return (
     <div className="app-container">
+      <MobileHeader title="List" onOpenCommandPalette={() => setCommandOpen(true)} />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}
@@ -425,6 +428,7 @@ export default function ListPage() {
         {/* Command Palette */}
         <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
+      <BottomNav />
     </div>
   );
 }

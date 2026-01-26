@@ -2326,3 +2326,482 @@ textarea.input {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
+
+/* ============================================
+   MOBILE APP STYLES
+   ============================================ */
+
+/* Mobile Header */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 16px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.mobile-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-logo {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.mobile-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-action-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-action-btn:active {
+  background: var(--bg-hover);
+  transform: scale(0.95);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 16px 24px;
+  z-index: 100;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  padding: 8px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.95);
+}
+
+.bottom-nav-item.active {
+  color: var(--accent);
+}
+
+.bottom-nav-item.active svg {
+  color: var(--accent);
+}
+
+.bottom-nav-item svg {
+  transition: transform 0.2s;
+}
+
+.bottom-nav-item.active svg {
+  transform: scale(1.1);
+}
+
+/* Touch-friendly styles */
+@media (max-width: 768px) {
+  /* Show mobile header and bottom nav */
+  .mobile-header {
+    display: flex;
+  }
+  
+  .bottom-nav {
+    display: flex;
+  }
+  
+  /* Hide sidebar */
+  .sidebar {
+    display: none !important;
+  }
+  
+  /* Adjust main content for mobile header/nav */
+  .app-container {
+    padding-top: 60px;
+    padding-bottom: 80px;
+  }
+  
+  .main-content {
+    padding-top: 0;
+  }
+  
+  /* Touch-friendly tap targets (min 44px) */
+  .btn,
+  .nav-tab,
+  .add-task-btn {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .input,
+  select.input,
+  .filter-select {
+    min-height: 44px;
+    padding: 12px;
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+  
+  /* Larger task cards for touch */
+  .task-card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .task-card-title {
+    font-size: 15px;
+  }
+  
+  /* Disable hover effects on touch */
+  .task-card:hover {
+    transform: none;
+  }
+  
+  /* Swipeable task card hint */
+  .task-card::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 24px;
+    background: var(--border-default);
+    border-radius: 2px;
+    opacity: 0.5;
+  }
+  
+  /* Show card actions always on mobile */
+  .task-card-actions {
+    opacity: 1;
+  }
+  
+  /* Mobile board columns */
+  .board {
+    padding: 16px;
+  }
+  
+  .board-columns {
+    gap: 16px;
+  }
+  
+  .column {
+    width: 85vw;
+    min-width: 85vw;
+    max-height: calc(100vh - 200px);
+  }
+  
+  /* Mobile header adjustments */
+  .header {
+    padding: 12px 16px;
+  }
+  
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  
+  .stats-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .stat-divider {
+    display: none;
+  }
+  
+  .stat-item {
+    flex: 1;
+    min-width: calc(50% - 12px);
+  }
+  
+  /* Mobile dashboard */
+  .dashboard-header {
+    padding: 16px;
+  }
+  
+  .dashboard-title {
+    font-size: 20px;
+  }
+  
+  .dashboard-content {
+    padding: 16px;
+  }
+  
+  .kpi-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .kpi-card {
+    padding: 16px;
+  }
+  
+  .kpi-value {
+    font-size: 24px;
+  }
+  
+  /* Mobile modal - full screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  
+  .modal {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+  }
+  
+  .modal-body {
+    max-height: 60vh;
+  }
+  
+  /* Mobile command palette */
+  .command-overlay {
+    padding: 16px;
+    padding-top: 80px;
+  }
+  
+  .command-palette {
+    max-width: 100%;
+  }
+  
+  .command-input {
+    font-size: 16px;
+  }
+  
+  .command-options {
+    flex-wrap: wrap;
+  }
+  
+  .command-option-buttons {
+    flex-wrap: wrap;
+  }
+  
+  /* Mobile list view */
+  .data-table {
+    font-size: 13px;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 12px 8px;
+  }
+  
+  /* Hide less important columns on mobile */
+  .data-table th:nth-child(4),
+  .data-table td:nth-child(4),
+  .data-table th:nth-child(5),
+  .data-table td:nth-child(5) {
+    display: none;
+  }
+  
+  /* Mobile calendar */
+  .calendar-grid {
+    font-size: 12px;
+  }
+  
+  .calendar-day {
+    min-height: 80px;
+    padding: 4px;
+  }
+  
+  .calendar-date {
+    font-size: 12px;
+  }
+  
+  .calendar-task {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  
+  .calendar-nav button {
+    padding: 10px 14px;
+  }
+  
+  .calendar-month {
+    font-size: 16px;
+    min-width: 140px;
+  }
+  
+  /* Mobile filters */
+  .list-filters {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .filter-select {
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  /* Bulk actions mobile */
+  .bulk-actions-bar {
+    position: fixed;
+    bottom: 80px;
+    left: 16px;
+    right: 16px;
+    z-index: 50;
+    margin: 0;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .mobile-header {
+    display: flex;
+  }
+  
+  .bottom-nav {
+    display: flex;
+  }
+  
+  .sidebar {
+    display: none !important;
+  }
+  
+  .app-container {
+    padding-top: 60px;
+    padding-bottom: 80px;
+  }
+  
+  .column {
+    width: 300px;
+    min-width: 300px;
+  }
+  
+  .kpi-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottom-nav {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    height: calc(72px + env(safe-area-inset-bottom));
+  }
+  
+  .app-container {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  
+  .mobile-header {
+    padding-top: env(safe-area-inset-top);
+    height: calc(60px + env(safe-area-inset-top));
+  }
+  
+  .app-container {
+    padding-top: calc(60px + env(safe-area-inset-top));
+  }
+}
+
+/* PWA standalone mode */
+@media (display-mode: standalone) {
+  .mobile-header {
+    padding-top: env(safe-area-inset-top, 20px);
+  }
+  
+  body {
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Prevent pull-to-refresh */
+  html, body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Dark mode scrollbars on mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

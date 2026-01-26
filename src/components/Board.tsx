@@ -9,6 +9,8 @@ import { Id } from '../../convex/_generated/dataModel';
 import { Column } from './Column';
 import { TaskModal } from './TaskModal';
 import { Sidebar } from './Sidebar';
+import { BottomNav } from './BottomNav';
+import { MobileHeader } from './MobileHeader';
 import { CommandPalette, useCommandPalette } from './CommandPalette';
 import { ActivityLog } from './ActivityLog';
 
@@ -241,6 +243,7 @@ export function Board() {
 
   return (
     <div className="app-container">
+      <MobileHeader title="Board" onOpenCommandPalette={() => setCommandOpen(true)} />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}
@@ -472,6 +475,7 @@ export function Board() {
         {/* Command Palette */}
         <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
+      <BottomNav />
     </div>
   );
 }

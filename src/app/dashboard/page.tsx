@@ -3,6 +3,8 @@
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Sidebar } from '@/components/Sidebar';
+import { BottomNav } from '@/components/BottomNav';
+import { MobileHeader } from '@/components/MobileHeader';
 import { KPICards } from '@/components/dashboard/KPICards';
 import { ProjectChart } from '@/components/dashboard/ProjectChart';
 import { TeamPerformance } from '@/components/dashboard/TeamPerformance';
@@ -30,6 +32,7 @@ export default function DashboardPage() {
 
   return (
     <div className="app-container">
+      <MobileHeader title="Dashboard" onOpenCommandPalette={() => setCommandOpen(true)} />
       <Sidebar activePage="dashboard" />
       <div className="main-content">
         {/* Header */}
@@ -80,6 +83,7 @@ export default function DashboardPage() {
         {/* Command Palette */}
         <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
+      <BottomNav />
     </div>
   );
 }
