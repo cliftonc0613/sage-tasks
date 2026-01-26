@@ -1,9 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+
+// Debounce hook for auto-save
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 interface Subtask {
   id: string;
@@ -119,6 +136,7 @@ function renderCommentContent(content: string): React.ReactNode {
 
 export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const addCommentMutation = useMutation(api.tasks.addComment);
+  const updateTaskMutation = useMutation(api.tasks.update);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -134,8 +152,66 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const [newComment, setNewComment] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments'>('details');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const isInitialLoad = useRef(true);
+
+  // Create a data object for auto-save
+  const taskData = {
+    title,
+    description,
+    assignee,
+    priority,
+    project: project || undefined,
+    dueDate: dueDate || undefined,
+    timeEstimate: timeEstimate || undefined,
+    subtasks,
+    recurring: isRecurring ? recurring : undefined,
+  };
+  
+  // Debounce the task data for auto-save (1.5 second delay)
+  const debouncedTaskData = useDebounce(JSON.stringify(taskData), 1500);
+
+  // Auto-save effect for existing tasks
+  useEffect(() => {
+    // Skip initial load and only save for existing tasks
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return;
+    }
+    
+    if (!task?._id || !isOpen) return;
+    
+    const saveTask = async () => {
+      setIsSaving(true);
+      try {
+        await updateTaskMutation({
+          id: task._id as Id<"tasks">,
+          title,
+          description,
+          assignee,
+          priority,
+          project: project || undefined,
+          dueDate: dueDate || undefined,
+          timeEstimate: timeEstimate || undefined,
+          subtasks,
+          recurring: isRecurring ? recurring : undefined,
+        });
+        setLastSaved(new Date());
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    
+    saveTask();
+  }, [debouncedTaskData]);
 
   useEffect(() => {
+    // Reset initial load flag when task changes
+    isInitialLoad.current = true;
+    
     if (task) {
       setTitle(task.title);
       setDescription(task.description);
@@ -162,6 +238,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setIsRecurring(false);
     }
     setActiveTab('details');
+    setLastSaved(null);
   }, [task, isOpen]);
 
   if (!isOpen) return null;
@@ -229,9 +306,31 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
-          <h2 className="modal-title">
-            {task ? 'Edit Task' : 'New Task'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 className="modal-title">
+              {task ? 'Edit Task' : 'New Task'}
+            </h2>
+            {task && (
+              <span style={{ 
+                fontSize: '12px', 
+                color: isSaving ? 'var(--accent)' : 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                {isSaving ? (
+                  <>
+                    <span className="loading-spinner" style={{ width: '12px', height: '12px' }} />
+                    Saving...
+                  </>
+                ) : lastSaved ? (
+                  <>✓ Auto-saved</>
+                ) : (
+                  <>Auto-save on</>
+                )}
+              </span>
+            )}
+          </div>
           <button 
             onClick={onClose} 
             className="btn btn-ghost btn-icon"
@@ -547,14 +646,16 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
               onClick={onClose}
               className="btn btn-secondary"
             >
-              Cancel
+              {task ? 'Close' : 'Cancel'}
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-            >
-              {task ? 'Save Changes' : 'Create Task'}
-            </button>
+            {!task && (
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+                Create Task
+              </button>
+            )}
           </div>
         </form>
       </div>
