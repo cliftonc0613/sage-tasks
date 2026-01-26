@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 
 interface Subtask {
   id: string;
@@ -115,6 +118,8 @@ function renderCommentContent(content: string): React.ReactNode {
 }
 
 export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
+  const addCommentMutation = useMutation(api.tasks.addComment);
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignee, setAssignee] = useState<"clifton" | "sage" | "unassigned">('unassigned');
@@ -196,9 +201,23 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
-  const addComment = () => {
+  const addComment = async () => {
     if (newComment.trim()) {
-      setComments([...comments, createComment(newComment.trim(), 'clifton')]);
+      const commentContent = newComment.trim();
+      
+      // If editing an existing task, save comment immediately to database
+      if (task?._id) {
+        await addCommentMutation({
+          taskId: task._id as Id<"tasks">,
+          author: 'clifton',
+          content: commentContent,
+        });
+        // Add to local state for immediate UI update
+        setComments([...comments, createComment(commentContent, 'clifton')]);
+      } else {
+        // For new tasks, just add to local state (will be saved with task)
+        setComments([...comments, createComment(commentContent, 'clifton')]);
+      }
       setNewComment('');
     }
   };
