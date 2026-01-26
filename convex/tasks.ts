@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Get all tasks
 export const list = query({
@@ -116,6 +117,7 @@ export const create = mutation({
       interval: v.number(),
       nextDue: v.optional(v.string()),
     })),
+    blockedBy: v.optional(v.array(v.id("tasks"))),
   },
   handler: async (ctx, args) => {
     // Get max order for the status column
@@ -137,6 +139,7 @@ export const create = mutation({
       subtasks: args.subtasks || [],
       comments: args.comments || [],
       recurring: args.recurring,
+      blockedBy: args.blockedBy,
       order: maxOrder + 1,
       createdAt: new Date().toISOString(),
     });
@@ -194,6 +197,7 @@ export const update = mutation({
       interval: v.number(),
       nextDue: v.optional(v.string()),
     })),
+    blockedBy: v.optional(v.array(v.id("tasks"))),
     order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -231,6 +235,16 @@ export const update = mutation({
         details: `Assigned to ${updates.assignee}`,
         createdAt: new Date().toISOString(),
       });
+
+      // Notify Sage when assigned to them
+      if (updates.assignee === "sage") {
+        await ctx.scheduler.runAfter(0, internal.notifications.notifySage, {
+          taskId: id,
+          taskTitle: task.title,
+          actionType: "assignment",
+          assignedBy: task.assignee !== "unassigned" ? task.assignee : "system",
+        });
+      }
     }
     if (updates.priority && updates.priority !== task.priority) {
       changes.push(`priority: ${task.priority} → ${updates.priority}`);
@@ -267,10 +281,23 @@ export const move = mutation({
       v.literal("done")
     ),
     newOrder: v.number(),
+    force: v.optional(v.boolean()), // Allow forcing move even with incomplete blockers
   },
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.id);
     if (!task) throw new Error("Task not found");
+
+    // Check for incomplete blockers when moving to done
+    if (args.newStatus === "done" && !args.force && task.blockedBy && task.blockedBy.length > 0) {
+      const blockers = await Promise.all(
+        task.blockedBy.map(async (blockerId) => ctx.db.get(blockerId))
+      );
+      const incompleteBlockers = blockers.filter((b) => b && b.status !== "done");
+      if (incompleteBlockers.length > 0) {
+        const blockerTitles = incompleteBlockers.map((b) => b?.title).join(", ");
+        throw new Error(`Cannot complete task: blocked by incomplete tasks: ${blockerTitles}`);
+      }
+    }
 
     const oldStatus = task.status;
 
@@ -421,6 +448,148 @@ export const addComment = mutation({
       details: args.content.substring(0, 100) + (args.content.length > 100 ? "..." : ""),
       createdAt: new Date().toISOString(),
     });
+
+    // Notify Sage if mentioned (and the author isn't sage themselves)
+    if (mentions.includes("sage") && args.author !== "sage") {
+      await ctx.scheduler.runAfter(0, internal.notifications.notifySage, {
+        taskId: args.taskId,
+        taskTitle: task.title,
+        actionType: "mention",
+        commentContent: args.content,
+        commentAuthor: args.author,
+      });
+    }
+  },
+});
+
+// Start timer for a task
+export const startTimer = mutation({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    
+    // Check if timer is already running
+    if (task.activeTimerStart) {
+      throw new Error("Timer is already running");
+    }
+    
+    const now = new Date().toISOString();
+    
+    await ctx.db.patch(args.taskId, {
+      activeTimerStart: now,
+      updatedAt: now,
+    });
+    
+    return { startTime: now };
+  },
+});
+
+// Stop timer for a task
+export const stopTimer = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    
+    if (!task.activeTimerStart) {
+      throw new Error("No timer is running");
+    }
+    
+    const now = new Date();
+    const startTime = new Date(task.activeTimerStart);
+    const durationMs = now.getTime() - startTime.getTime();
+    const durationMinutes = Math.round(durationMs / 60000);
+    
+    const newEntry = {
+      id: crypto.randomUUID(),
+      startTime: task.activeTimerStart,
+      endTime: now.toISOString(),
+      notes: args.notes,
+      duration: Math.max(1, durationMinutes), // Minimum 1 minute
+    };
+    
+    const existingEntries = task.timeEntries || [];
+    const existingTotal = task.totalTimeSpent || 0;
+    
+    await ctx.db.patch(args.taskId, {
+      timeEntries: [...existingEntries, newEntry],
+      totalTimeSpent: existingTotal + newEntry.duration,
+      activeTimerStart: undefined,
+      updatedAt: now.toISOString(),
+    });
+    
+    return { entry: newEntry, totalTimeSpent: existingTotal + newEntry.duration };
+  },
+});
+
+// Add manual time entry
+export const addManualTime = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    duration: v.number(), // in minutes
+    notes: v.optional(v.string()),
+    date: v.optional(v.string()), // ISO date string, defaults to now
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    
+    const entryDate = args.date || new Date().toISOString();
+    
+    const newEntry = {
+      id: crypto.randomUUID(),
+      startTime: entryDate,
+      endTime: entryDate,
+      notes: args.notes,
+      duration: args.duration,
+    };
+    
+    const existingEntries = task.timeEntries || [];
+    const existingTotal = task.totalTimeSpent || 0;
+    
+    await ctx.db.patch(args.taskId, {
+      timeEntries: [...existingEntries, newEntry],
+      totalTimeSpent: existingTotal + args.duration,
+      updatedAt: new Date().toISOString(),
+    });
+    
+    return { entry: newEntry, totalTimeSpent: existingTotal + args.duration };
+  },
+});
+
+// Delete a time entry
+export const deleteTimeEntry = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    entryId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) throw new Error("Task not found");
+    
+    const entries = task.timeEntries || [];
+    const entryToDelete = entries.find(e => e.id === args.entryId);
+    
+    if (!entryToDelete) {
+      throw new Error("Time entry not found");
+    }
+    
+    const updatedEntries = entries.filter(e => e.id !== args.entryId);
+    const existingTotal = task.totalTimeSpent || 0;
+    
+    await ctx.db.patch(args.taskId, {
+      timeEntries: updatedEntries,
+      totalTimeSpent: Math.max(0, existingTotal - entryToDelete.duration),
+      updatedAt: new Date().toISOString(),
+    });
+    
+    return { deleted: true };
   },
 });
 
@@ -442,6 +611,37 @@ export const toggleSubtask = mutation({
       subtasks: updatedSubtasks,
       updatedAt: new Date().toISOString(),
     });
+  },
+});
+
+// Check if a task has incomplete blockers
+export const getBlockerStatus = query({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task || !task.blockedBy || task.blockedBy.length === 0) {
+      return { hasIncompleteBlockers: false, blockers: [] };
+    }
+
+    const blockers = await Promise.all(
+      task.blockedBy.map(async (blockerId) => {
+        const blocker = await ctx.db.get(blockerId);
+        return blocker;
+      })
+    );
+
+    const validBlockers = blockers.filter((b): b is NonNullable<typeof b> => b !== null);
+    const incompleteBlockers = validBlockers.filter((b) => b.status !== "done");
+
+    return {
+      hasIncompleteBlockers: incompleteBlockers.length > 0,
+      blockers: validBlockers.map((b) => ({
+        _id: b._id,
+        title: b.title,
+        status: b.status,
+        isComplete: b.status === "done",
+      })),
+    };
   },
 });
 
