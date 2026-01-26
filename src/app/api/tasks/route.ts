@@ -1,125 +1,160 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../../../convex/_generated/api';
+import { Id } from '../../../../convex/_generated/dataModel';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'board.json');
+// Initialize Convex client
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dir);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
-  }
-}
-
-// Get board data
-async function getBoard() {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    // Return initial state if file doesn't exist
-    return {
-      tasks: {},
-      columns: {
-        'backlog': { id: 'backlog', title: 'Backlog', taskIds: [] },
-        'todo': { id: 'todo', title: 'To Do', taskIds: [] },
-        'in-progress': { id: 'in-progress', title: 'In Progress', taskIds: [] },
-        'review': { id: 'review', title: 'Review', taskIds: [] },
-        'done': { id: 'done', title: 'Done', taskIds: [] },
-      },
-      columnOrder: ['backlog', 'todo', 'in-progress', 'review', 'done'],
-    };
-  }
-}
-
-// Save board data
-async function saveBoard(board: any) {
-  await ensureDataDir();
-  await fs.writeFile(DATA_FILE, JSON.stringify(board, null, 2));
-}
-
-// GET - Fetch all tasks or filter by assignee
+// GET - Fetch all tasks or filter by assignee/status
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const assignee = searchParams.get('assignee');
-  const status = searchParams.get('status');
+  try {
+    const { searchParams } = new URL(request.url);
+    const assignee = searchParams.get('assignee');
+    const status = searchParams.get('status');
 
-  const board = await getBoard();
-  let tasks = Object.values(board.tasks);
+    const tasks = await convex.query(api.tasks.list);
+    let filteredTasks = tasks;
 
-  // Filter by assignee
-  if (assignee) {
-    tasks = tasks.filter((t: any) => t.assignee === assignee);
-  }
-
-  // Filter by status (column)
-  if (status) {
-    const columnTaskIds = board.columns[status]?.taskIds || [];
-    tasks = tasks.filter((t: any) => columnTaskIds.includes(t.id));
-  }
-
-  // For Sage endpoint, include column info
-  const tasksWithStatus = tasks.map((task: any) => {
-    let taskStatus = 'unknown';
-    for (const [columnId, column] of Object.entries(board.columns) as any) {
-      if (column.taskIds.includes(task.id)) {
-        taskStatus = columnId;
-        break;
-      }
+    // Filter by assignee
+    if (assignee) {
+      filteredTasks = filteredTasks.filter((t) => t.assignee === assignee);
     }
-    return { ...task, status: taskStatus };
-  });
 
-  return NextResponse.json({
-    success: true,
-    count: tasksWithStatus.length,
-    tasks: tasksWithStatus,
-  });
+    // Filter by status
+    if (status) {
+      filteredTasks = filteredTasks.filter((t) => t.status === status);
+    }
+
+    return NextResponse.json({
+      success: true,
+      count: filteredTasks.length,
+      tasks: filteredTasks,
+    });
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch tasks' },
+      { status: 500 }
+    );
+  }
 }
 
 // POST - Create a new task
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const board = await getBoard();
+  try {
+    const body = await request.json();
 
-  const task = {
-    id: crypto.randomUUID(),
-    title: body.title,
-    description: body.description || '',
-    assignee: body.assignee || 'unassigned',
-    priority: body.priority || 'medium',
-    createdAt: new Date().toISOString(),
-    dueDate: body.dueDate,
-    project: body.project,
-    subtasks: body.subtasks || [],
-    comments: body.comments || [],
-  };
+    // Validate required fields
+    if (!body.title) {
+      return NextResponse.json(
+        { success: false, error: 'title required' },
+        { status: 400 }
+      );
+    }
 
-  board.tasks[task.id] = task;
-  
-  const column = body.column || 'todo';
-  if (board.columns[column]) {
-    board.columns[column].taskIds.push(task.id);
+    const taskId = await convex.mutation(api.tasks.create, {
+      title: body.title,
+      description: body.description || '',
+      assignee: body.assignee || 'unassigned',
+      priority: body.priority || 'medium',
+      status: body.status || 'todo',
+      project: body.project,
+      dueDate: body.dueDate,
+      timeEstimate: body.timeEstimate,
+      subtasks: body.subtasks || [],
+      comments: body.comments || [],
+      recurring: body.recurring,
+    });
+
+    // Fetch the created task
+    const tasks = await convex.query(api.tasks.list);
+    const task = tasks.find((t) => t._id === taskId);
+
+    return NextResponse.json({
+      success: true,
+      task,
+    });
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create task', details: String(error) },
+      { status: 500 }
+    );
   }
-
-  await saveBoard(board);
-
-  return NextResponse.json({
-    success: true,
-    task,
-  });
 }
 
-// PUT - Update board state (sync from client)
+// PUT - Update an existing task
 export async function PUT(request: NextRequest) {
-  const board = await request.json();
-  await saveBoard(board);
+  try {
+    const body = await request.json();
 
-  return NextResponse.json({
-    success: true,
-    message: 'Board synced',
-  });
+    if (!body.id) {
+      return NextResponse.json(
+        { success: false, error: 'id required' },
+        { status: 400 }
+      );
+    }
+
+    // Build update object with only provided fields
+    const updateArgs: Record<string, unknown> = { id: body.id as Id<"tasks"> };
+    
+    if (body.title !== undefined) updateArgs.title = body.title;
+    if (body.description !== undefined) updateArgs.description = body.description;
+    if (body.assignee !== undefined) updateArgs.assignee = body.assignee;
+    if (body.priority !== undefined) updateArgs.priority = body.priority;
+    if (body.status !== undefined) updateArgs.status = body.status;
+    if (body.project !== undefined) updateArgs.project = body.project;
+    if (body.dueDate !== undefined) updateArgs.dueDate = body.dueDate;
+    if (body.timeEstimate !== undefined) updateArgs.timeEstimate = body.timeEstimate;
+    if (body.subtasks !== undefined) updateArgs.subtasks = body.subtasks;
+    if (body.comments !== undefined) updateArgs.comments = body.comments;
+    if (body.recurring !== undefined) updateArgs.recurring = body.recurring;
+    if (body.order !== undefined) updateArgs.order = body.order;
+
+    await convex.mutation(api.tasks.update, updateArgs as Parameters<typeof api.tasks.update>[0]);
+
+    // Fetch the updated task
+    const tasks = await convex.query(api.tasks.list);
+    const task = tasks.find((t) => t._id === body.id);
+
+    return NextResponse.json({
+      success: true,
+      task,
+    });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update task', details: String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a task
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'id required (as query param)' },
+        { status: 400 }
+      );
+    }
+
+    await convex.mutation(api.tasks.remove, { id: id as Id<"tasks"> });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Task deleted',
+    });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete task', details: String(error) },
+      { status: 500 }
+    );
+  }
 }

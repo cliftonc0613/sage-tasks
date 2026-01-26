@@ -1,143 +1,171 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '../../../../../convex/_generated/api';
+import { Id } from '../../../../../convex/_generated/dataModel';
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'board.json');
-
-async function getBoard() {
-  try {
-    const data = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {
-      tasks: {},
-      columns: {
-        'backlog': { id: 'backlog', title: 'Backlog', taskIds: [] },
-        'todo': { id: 'todo', title: 'To Do', taskIds: [] },
-        'in-progress': { id: 'in-progress', title: 'In Progress', taskIds: [] },
-        'review': { id: 'review', title: 'Review', taskIds: [] },
-        'done': { id: 'done', title: 'Done', taskIds: [] },
-      },
-      columnOrder: ['backlog', 'todo', 'in-progress', 'review', 'done'],
-    };
-  }
-}
-
-async function ensureDataDir() {
-  const dir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dir);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
-  }
-}
-
-function getTaskStatus(taskId: string, columns: Record<string, { taskIds: string[] }>): string {
-  for (const [columnId, column] of Object.entries(columns)) {
-    if (column.taskIds.includes(taskId)) {
-      return columnId;
-    }
-  }
-  return 'unknown';
-}
+// Initialize Convex client
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 // GET - Fetch Sage's tasks with summary
 export async function GET() {
-  const board = await getBoard();
-  
-  const allTasks = Object.values(board.tasks) as Record<string, unknown>[];
-  const sageTasks = allTasks.filter((t: Record<string, unknown>) => t.assignee === 'sage');
-  
-  // Categorize by status
-  const pending = sageTasks.filter((t: Record<string, unknown>) => {
-    const status = getTaskStatus(t.id as string, board.columns);
-    return ['backlog', 'todo'].includes(status);
-  });
-  
-  const inProgress = sageTasks.filter((t: Record<string, unknown>) => {
-    const status = getTaskStatus(t.id as string, board.columns);
-    return status === 'in-progress';
-  });
-  
-  const inReview = sageTasks.filter((t: Record<string, unknown>) => {
-    const status = getTaskStatus(t.id as string, board.columns);
-    return status === 'review';
-  });
-  
-  const completed = sageTasks.filter((t: Record<string, unknown>) => {
-    const status = getTaskStatus(t.id as string, board.columns);
-    return status === 'done';
-  });
+  try {
+    const allTasks = await convex.query(api.tasks.list);
+    
+    const sageTasks = allTasks.filter((t) => t.assignee === 'sage');
+    
+    // Categorize by status
+    const pending = sageTasks.filter((t) => ['backlog', 'todo'].includes(t.status));
+    const inProgress = sageTasks.filter((t) => t.status === 'in-progress');
+    const inReview = sageTasks.filter((t) => t.status === 'review');
+    const completed = sageTasks.filter((t) => t.status === 'done');
 
-  // Add status to each task
-  const addStatus = (tasks: Record<string, unknown>[]) => tasks.map(t => ({
-    ...t,
-    status: getTaskStatus(t.id as string, board.columns)
-  }));
-
-  return NextResponse.json({
-    success: true,
-    summary: {
-      total: sageTasks.length,
-      pending: pending.length,
-      inProgress: inProgress.length,
-      inReview: inReview.length,
-      completed: completed.length,
-    },
-    tasks: {
-      pending: addStatus(pending),
-      inProgress: addStatus(inProgress),
-      inReview: addStatus(inReview),
-      completed: addStatus(completed),
-    },
-    lastChecked: new Date().toISOString(),
-  });
+    return NextResponse.json({
+      success: true,
+      summary: {
+        total: sageTasks.length,
+        pending: pending.length,
+        inProgress: inProgress.length,
+        inReview: inReview.length,
+        completed: completed.length,
+      },
+      tasks: {
+        pending,
+        inProgress,
+        inReview,
+        completed,
+      },
+      lastChecked: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch tasks' },
+      { status: 500 }
+    );
+  }
 }
 
 // PATCH - Update a task's status (Sage completing work)
 export async function PATCH(request: NextRequest) {
-  const body = await request.json();
-  const { taskId, status, comment } = body;
+  try {
+    const body = await request.json();
+    const { taskId, status, comment, assignee } = body;
 
-  if (!taskId) {
-    return NextResponse.json({ success: false, error: 'taskId required' }, { status: 400 });
-  }
-
-  const board = await getBoard();
-  
-  if (!board.tasks[taskId]) {
-    return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
-  }
-
-  // Update status by moving between columns
-  if (status && board.columns[status]) {
-    // Remove from current column
-    for (const column of Object.values(board.columns) as { taskIds: string[] }[]) {
-      column.taskIds = column.taskIds.filter((id: string) => id !== taskId);
+    if (!taskId) {
+      return NextResponse.json(
+        { success: false, error: 'taskId required' },
+        { status: 400 }
+      );
     }
-    // Add to new column
-    board.columns[status].taskIds.push(taskId);
-    board.tasks[taskId].updatedAt = new Date().toISOString();
-  }
 
-  // Add comment if provided
-  if (comment) {
-    if (!board.tasks[taskId].comments) {
-      board.tasks[taskId].comments = [];
+    // Verify task exists
+    const allTasks = await convex.query(api.tasks.list);
+    const task = allTasks.find((t) => t._id === taskId);
+    
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: 'Task not found' },
+        { status: 404 }
+      );
     }
-    board.tasks[taskId].comments.push({
-      id: crypto.randomUUID(),
-      author: 'sage',
-      content: comment,
-      createdAt: new Date().toISOString(),
+
+    // Update task status/assignee if provided
+    if (status || assignee) {
+      const updateArgs: { id: Id<"tasks">; status?: string; assignee?: string } = {
+        id: taskId as Id<"tasks">,
+      };
+      if (status) updateArgs.status = status;
+      if (assignee) updateArgs.assignee = assignee;
+      
+      await convex.mutation(api.tasks.update, updateArgs);
+    }
+
+    // Add comment if provided
+    if (comment) {
+      await convex.mutation(api.tasks.addComment, {
+        taskId: taskId as Id<"tasks">,
+        author: 'sage',
+        content: comment,
+      });
+    }
+
+    // Fetch updated task
+    const updatedTasks = await convex.query(api.tasks.list);
+    const updatedTask = updatedTasks.find((t) => t._id === taskId);
+
+    return NextResponse.json({
+      success: true,
+      task: updatedTask,
     });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update task', details: String(error) },
+      { status: 500 }
+    );
   }
+}
 
-  await ensureDataDir();
-  await fs.writeFile(DATA_FILE, JSON.stringify(board, null, 2));
+// POST - Add a comment to a task (for @sage replies)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { taskId, content, author = 'sage' } = body;
 
-  return NextResponse.json({
-    success: true,
-    task: { ...board.tasks[taskId], status },
-  });
+    if (!taskId) {
+      return NextResponse.json(
+        { success: false, error: 'taskId required' },
+        { status: 400 }
+      );
+    }
+
+    if (!content) {
+      return NextResponse.json(
+        { success: false, error: 'content required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate author
+    if (!['clifton', 'sage', 'system'].includes(author)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid author. Must be clifton, sage, or system' },
+        { status: 400 }
+      );
+    }
+
+    // Verify task exists
+    const allTasks = await convex.query(api.tasks.list);
+    const task = allTasks.find((t) => t._id === taskId);
+    
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    // Add comment
+    await convex.mutation(api.tasks.addComment, {
+      taskId: taskId as Id<"tasks">,
+      author: author as 'clifton' | 'sage' | 'system',
+      content,
+    });
+
+    // Fetch updated task to return with new comment
+    const updatedTasks = await convex.query(api.tasks.list);
+    const updatedTask = updatedTasks.find((t) => t._id === taskId);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Comment added successfully',
+      task: updatedTask,
+    });
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to add comment', details: String(error) },
+      { status: 500 }
+    );
+  }
 }
