@@ -77,7 +77,8 @@ export async function PATCH(request: NextRequest) {
       if (status) updateArgs.status = status;
       if (assignee) updateArgs.assignee = assignee;
       
-      await convex.mutation(api.tasks.update, updateArgs);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await convex.mutation(api.tasks.update, updateArgs as any);
     }
 
     // Add comment if provided
