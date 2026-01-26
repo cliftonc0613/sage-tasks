@@ -214,7 +214,7 @@ export const update = mutation({
     if (updates.status && updates.status !== task.status) {
       changes.push(`status: ${task.status} → ${updates.status}`);
       
-      // Log completion
+      // Log completion and clear assignee when moving to done
       if (updates.status === "done" && task.status !== "done") {
         await ctx.db.insert("activity", {
           taskId: id,
@@ -223,6 +223,12 @@ export const update = mutation({
           actor: task.assignee === "unassigned" ? "system" : task.assignee,
           createdAt: new Date().toISOString(),
         });
+        
+        // Auto-remove assignee when task is done
+        if (task.assignee !== "unassigned" && updates.assignee === undefined) {
+          filteredUpdates.assignee = "unassigned";
+          changes.push(`assignee: ${task.assignee} → unassigned (auto-cleared on completion)`);
+        }
       }
     }
     if (updates.assignee && updates.assignee !== task.assignee) {
@@ -314,21 +320,36 @@ export const move = mutation({
       }
     }
 
-    // Update the moved task
-    await ctx.db.patch(args.id, {
+    // Update the moved task - auto-clear assignee when moving to done
+    const taskUpdate: {
+      status: typeof args.newStatus;
+      order: number;
+      updatedAt: string;
+      assignee?: "unassigned";
+    } = {
       status: args.newStatus,
       order: args.newOrder,
       updatedAt: new Date().toISOString(),
-    });
+    };
+    
+    if (args.newStatus === "done" && task.assignee !== "unassigned") {
+      taskUpdate.assignee = "unassigned";
+    }
+    
+    await ctx.db.patch(args.id, taskUpdate);
 
     // Log activity
     if (oldStatus !== args.newStatus) {
+      const details = args.newStatus === "done" && task.assignee !== "unassigned"
+        ? `${oldStatus} → ${args.newStatus} (assignee auto-cleared)`
+        : `${oldStatus} → ${args.newStatus}`;
+      
       await ctx.db.insert("activity", {
         taskId: args.id,
         taskTitle: task.title,
         action: "moved",
         actor: task.assignee === "unassigned" ? "system" : task.assignee,
-        details: `${oldStatus} → ${args.newStatus}`,
+        details,
         createdAt: new Date().toISOString(),
       });
 
@@ -384,13 +405,20 @@ export const bulkUpdate = mutation({
     const { ids, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, v]) => v !== undefined)
-    );
+    ) as Record<string, unknown>;
 
     for (const id of ids) {
       const task = await ctx.db.get(id);
       if (task) {
+        const taskUpdates = { ...filteredUpdates };
+        
+        // Auto-clear assignee when bulk-moving to done
+        if (updates.status === "done" && task.assignee !== "unassigned" && updates.assignee === undefined) {
+          taskUpdates.assignee = "unassigned";
+        }
+        
         await ctx.db.patch(id, {
-          ...filteredUpdates,
+          ...taskUpdates,
           updatedAt: new Date().toISOString(),
         });
       }
