@@ -1498,7 +1498,7 @@ textarea.input {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .sidebar {
     display: none;
   }
@@ -2452,7 +2452,7 @@ textarea.input {
 }
 
 /* Touch-friendly styles */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* Show mobile header and bottom nav */
   .mobile-header {
     display: flex;
@@ -2711,7 +2711,8 @@ textarea.input {
 }
 
 /* Tablet adjustments - keep sidebar visible and fixed, content slides under */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* Covers iPad portrait (768px) through landscape (1024px) and similar tablets */
+@media (min-width: 768px) and (max-width: 1199px) {
   /* Hide mobile header and bottom nav on tablet */
   .mobile-header {
     display: none;
@@ -2802,7 +2803,7 @@ textarea.input {
 }
 
 /* Dark mode scrollbars on mobile */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;
