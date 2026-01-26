@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as github from "../github.js";
 import type * as tasks from "../tasks.js";
 import type * as telegram from "../telegram.js";
 
@@ -18,6 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  github: typeof github;
   tasks: typeof tasks;
   telegram: typeof telegram;
 }>;
