@@ -112,17 +112,21 @@ async function handlePushEvent(payload: PushPayload): Promise<{ processed: numbe
 }
 
 /**
- * Handle pull request events - update task on merge
+ * Handle pull request events - full lifecycle tracking
+ * 
+ * PR Status → Task Status Automation:
+ * - PR opened → move task to in-progress
+ * - PR ready for review (draft → open) → move task to review
+ * - PR merged → move task to review
+ * - PR closed without merge → move task to on-hold + auto-comment
  */
 async function handlePullRequestEvent(payload: PRPayload): Promise<{ processed: number; errors: string[] }> {
   const results = { processed: 0, errors: [] as string[] };
   
-  // Only process merged PRs
-  if (payload.action !== 'closed' || !payload.pull_request?.merged) {
-    return results;
-  }
-
+  const action = payload.action;
   const pr = payload.pull_request;
+  if (!pr) return results;
+  
   const repo = payload.repository?.full_name || 'unknown';
   
   // Parse task references from PR title, body, and branch name
@@ -138,18 +142,122 @@ async function handlePullRequestEvent(payload: PRPayload): Promise<{ processed: 
     const task = await findTask(ref);
     if (task) {
       try {
-        await convex.mutation(api.github.updateFromPRMerge, {
-          taskId: task._id,
-          prNumber: pr.number,
-          prTitle: pr.title,
-          prUrl: pr.html_url,
-          mergedBy: pr.merged_by?.login,
-          repo,
-          targetStatus: 'review', // Move to review on PR merge
-        });
-        results.processed++;
+        // Determine PR status
+        let prStatus: 'open' | 'draft' | 'merged' | 'closed' = 'open';
+        if (pr.merged) {
+          prStatus = 'merged';
+        } else if (pr.draft) {
+          prStatus = 'draft';
+        } else if (pr.state === 'closed') {
+          prStatus = 'closed';
+        }
+
+        switch (action) {
+          case 'opened':
+          case 'reopened':
+            // Link PR to task and move to in-progress
+            await convex.mutation(api.github.linkPR, {
+              taskId: task._id,
+              prNumber: pr.number,
+              prUrl: pr.html_url,
+              repo,
+              title: pr.title,
+              author: pr.user?.login,
+              status: pr.draft ? 'draft' : 'open',
+              additions: pr.additions,
+              deletions: pr.deletions,
+              changedFiles: pr.changed_files,
+            });
+            // Move task to in-progress
+            await convex.mutation(api.tasks.update, {
+              id: task._id,
+              status: 'in-progress',
+            });
+            results.processed++;
+            break;
+
+          case 'ready_for_review':
+            // Draft → Open: update PR status and move task to review
+            await convex.mutation(api.github.updatePRStatus, {
+              taskId: task._id,
+              repo,
+              prNumber: pr.number,
+              status: 'open',
+            });
+            // Move task to review
+            await convex.mutation(api.tasks.update, {
+              id: task._id,
+              status: 'review',
+            });
+            results.processed++;
+            break;
+
+          case 'converted_to_draft':
+            // Update status to draft
+            await convex.mutation(api.github.updatePRStatus, {
+              taskId: task._id,
+              repo,
+              prNumber: pr.number,
+              status: 'draft',
+            });
+            results.processed++;
+            break;
+
+          case 'closed':
+            if (pr.merged) {
+              // PR merged - update status and move task to review
+              await convex.mutation(api.github.updatePRStatus, {
+                taskId: task._id,
+                repo,
+                prNumber: pr.number,
+                status: 'merged',
+              });
+              await convex.mutation(api.github.updateFromPRMerge, {
+                taskId: task._id,
+                prNumber: pr.number,
+                prTitle: pr.title,
+                prUrl: pr.html_url,
+                mergedBy: pr.merged_by?.login,
+                repo,
+                targetStatus: 'review',
+              });
+            } else {
+              // PR closed without merge - update status and move task to on-hold with comment
+              await convex.mutation(api.github.updatePRStatus, {
+                taskId: task._id,
+                repo,
+                prNumber: pr.number,
+                status: 'closed',
+              });
+              // Move task to on-hold
+              await convex.mutation(api.tasks.update, {
+                id: task._id,
+                status: 'on-hold',
+              });
+              // Add warning comment
+              await convex.mutation(api.tasks.addComment, {
+                id: task._id,
+                author: 'system',
+                content: `⚠️ PR #${pr.number} closed without merge. Task moved to on-hold.`,
+              });
+            }
+            results.processed++;
+            break;
+
+          case 'edited':
+            // Update PR title if changed
+            await convex.mutation(api.github.updatePRStatus, {
+              taskId: task._id,
+              repo,
+              prNumber: pr.number,
+              status: prStatus,
+              title: pr.title,
+            });
+            results.processed++;
+            break;
+        }
       } catch (err) {
-        results.errors.push(`Failed to update task ${ref} from PR: ${err}`);
+        results.errors.push(`Failed to process PR event for task ${ref}: ${err}`);
       }
     }
   }
@@ -173,12 +281,18 @@ interface PRPayload {
   action?: string;
   pull_request?: {
     merged: boolean;
+    draft?: boolean;
+    state?: 'open' | 'closed';
     number: number;
     title: string;
     body?: string;
     html_url: string;
     merged_by?: { login: string };
+    user?: { login: string };
     head?: { ref?: string };
+    additions?: number;
+    deletions?: number;
+    changed_files?: number;
   };
   repository?: { full_name?: string };
 }

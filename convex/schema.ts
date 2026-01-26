@@ -23,7 +23,8 @@ export default defineSchema({
       v.literal("todo"),
       v.literal("in-progress"),
       v.literal("review"),
-      v.literal("done")
+      v.literal("done"),
+      v.literal("on-hold")
     ),
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
@@ -67,6 +68,28 @@ export default defineSchema({
     })),
     // Task dependencies - array of task IDs that block this task
     blockedBy: v.optional(v.array(v.id("tasks"))),
+    // GitHub PR links
+    linkedPRs: v.optional(v.array(
+      v.object({
+        id: v.string(),                // UUID for this link
+        prNumber: v.number(),          // PR #123
+        prUrl: v.string(),             // Full GitHub URL
+        repo: v.string(),              // "owner/repo"
+        title: v.string(),             // PR title
+        author: v.optional(v.string()), // GitHub username
+        status: v.union(
+          v.literal("open"),
+          v.literal("draft"),
+          v.literal("merged"),
+          v.literal("closed")
+        ),
+        linkedAt: v.string(),          // ISO timestamp
+        updatedAt: v.optional(v.string()),
+        additions: v.optional(v.number()),
+        deletions: v.optional(v.number()),
+        changedFiles: v.optional(v.number()),
+      })
+    )),
   })
     .index("by_status", ["status"])
     .index("by_assignee", ["assignee"])
