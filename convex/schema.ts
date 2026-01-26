@@ -2,6 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Task templates for quick task creation
+  templates: defineTable({
+    name: v.string(),
+    description: v.string(),
+    defaultPriority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    defaultProject: v.optional(v.string()),
+    subtasks: v.array(v.string()), // Array of subtask titles
+    createdAt: v.string(),
+  })
+    .index("by_name", ["name"]),
+
   tasks: defineTable({
     title: v.string(),
     description: v.string(),
@@ -17,6 +28,18 @@ export default defineSchema({
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
     timeEstimate: v.optional(v.number()), // in minutes
+    // Time tracking
+    timeEntries: v.optional(v.array(
+      v.object({
+        id: v.string(),
+        startTime: v.string(), // ISO string
+        endTime: v.optional(v.string()), // ISO string, undefined if timer is running
+        notes: v.optional(v.string()),
+        duration: v.number(), // in minutes (calculated when stopped)
+      })
+    )),
+    totalTimeSpent: v.optional(v.number()), // in minutes
+    activeTimerStart: v.optional(v.string()), // ISO string if timer is currently running
     subtasks: v.array(
       v.object({
         id: v.string(),
@@ -42,6 +65,8 @@ export default defineSchema({
       interval: v.number(), // every N days/weeks/months
       nextDue: v.optional(v.string()),
     })),
+    // Task dependencies - array of task IDs that block this task
+    blockedBy: v.optional(v.array(v.id("tasks"))),
   })
     .index("by_status", ["status"])
     .index("by_assignee", ["assignee"])

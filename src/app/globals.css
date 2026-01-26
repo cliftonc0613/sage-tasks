@@ -2846,3 +2846,465 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================
+   TEMPLATE PICKER
+   ============================================ */
+
+.template-picker {
+  max-width: 520px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.command-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.template-list {
+  padding: 8px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.template-loading,
+.template-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.template-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.template-item {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.template-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.template-item:last-child {
+  margin-bottom: 0;
+}
+
+.template-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.template-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.template-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.template-subtasks-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.subtask-count {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.template-project {
+  color: var(--text-muted);
+}
+
+/* Template Configure Step */
+.template-configure {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.template-title-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.template-title-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.template-preview {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.template-preview label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.subtask-preview-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.subtask-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.subtask-preview-item:last-child {
+  border-bottom: none;
+}
+
+.subtask-checkbox {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.template-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   TIME TRACKING
+   ============================================ */
+
+/* Timer tab indicator */
+.modal-tab.timer-running {
+  position: relative;
+}
+
+.timer-pulse {
+  color: var(--status-high);
+  animation: pulse 1.5s infinite;
+  margin-left: 4px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Time tracking sections */
+.time-tracking-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.time-tracking-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Timer display */
+.timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.timer-clock {
+  text-align: center;
+}
+
+.timer-clock.running .timer-value {
+  color: var(--accent);
+}
+
+.timer-value {
+  font-size: 48px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  color: var(--text-primary);
+  letter-spacing: 2px;
+}
+
+.timer-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.timer-notes-input {
+  width: 100%;
+  max-width: 300px;
+}
+
+.timer-btn {
+  min-width: 160px;
+  padding: 12px 24px !important;
+  font-size: 14px !important;
+}
+
+.btn-danger {
+  background: var(--status-high);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: #ef4444;
+}
+
+/* Time summary */
+.time-summary {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+}
+
+.time-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.time-summary-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.time-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+}
+
+.time-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.time-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.time-progress-fill {
+  height: 100%;
+  background: var(--status-complete);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.time-progress-fill.over {
+  background: var(--status-high);
+}
+
+.time-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.time-progress-label.over {
+  color: var(--status-high);
+}
+
+/* Manual time form */
+.manual-time-form {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+}
+
+.manual-time-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.manual-time-input {
+  width: 100px;
+}
+
+/* Time entries list */
+.time-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.time-entry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.time-entry-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.time-entry-duration {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  background: var(--accent-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.time-entry-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.time-entry-notes {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Task card time tracking indicator */
+.task-meta-item.timer-running {
+  color: var(--status-high);
+  animation: pulse 1.5s infinite;
+}
+
+.timer-pulse-dot {
+  margin-right: 4px;
+}
+
+.task-meta-item.time-tracking {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-meta-item.time-tracking .time-separator {
+  color: var(--text-muted);
+}
+
+.task-meta-item.time-tracking.over-estimate {
+  color: var(--status-high);
+}
