@@ -112,7 +112,8 @@ export async function PUT(request: NextRequest) {
     if (body.recurring !== undefined) updateArgs.recurring = body.recurring;
     if (body.order !== undefined) updateArgs.order = body.order;
 
-    await convex.mutation(api.tasks.update, updateArgs as Parameters<typeof api.tasks.update>[0]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await convex.mutation(api.tasks.update, updateArgs as any);
 
     // Fetch the updated task
     const tasks = await convex.query(api.tasks.list);
