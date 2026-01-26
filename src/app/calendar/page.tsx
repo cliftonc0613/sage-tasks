@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 import { Sidebar } from '@/components/Sidebar';
 import { TaskModal } from '@/components/TaskModal';
+import { CommandPalette, useCommandPalette } from '@/components/CommandPalette';
 
 export default function CalendarPage() {
   const tasks = useQuery(api.tasks.list);
+  const updateTask = useMutation(api.tasks.update);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const { isOpen: commandOpen, setIsOpen: setCommandOpen } = useCommandPalette();
 
   const calendarData = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -63,6 +67,13 @@ export default function CalendarPage() {
     return date.toDateString() === today.toDateString();
   };
 
+  const isOverdue = (task: any) => {
+    if (!task.dueDate || task.status === 'done') return false;
+    const due = new Date(task.dueDate);
+    due.setHours(23, 59, 59, 999);
+    return due < new Date();
+  };
+
   const prevMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
@@ -102,13 +113,25 @@ export default function CalendarPage() {
               <h1 className="dashboard-title">Calendar</h1>
               <p className="dashboard-subtitle">View tasks by due date</p>
             </div>
-            <div className="calendar-nav">
-              <button onClick={prevMonth}>← Prev</button>
-              <span className="calendar-month">
-                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </span>
-              <button onClick={nextMonth}>Next →</button>
-              <button onClick={goToToday}>Today</button>
+            <div className="header-actions">
+              <div className="calendar-nav">
+                <button onClick={prevMonth}>← Prev</button>
+                <span className="calendar-month">
+                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </span>
+                <button onClick={nextMonth}>Next →</button>
+                <button onClick={goToToday}>Today</button>
+              </div>
+              <button 
+                className="btn btn-primary"
+                onClick={() => setCommandOpen(true)}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Task
+                <span className="shortcut-badge">⌘K</span>
+              </button>
             </div>
           </div>
         </header>
@@ -133,11 +156,11 @@ export default function CalendarPage() {
                   {dayTasks.slice(0, 3).map(task => (
                     <div 
                       key={task._id} 
-                      className={`calendar-task ${task.priority}`}
+                      className={`calendar-task ${task.priority} ${isOverdue(task) ? 'overdue-task' : ''}`}
                       onClick={() => { setEditingTask(task); setIsModalOpen(true); }}
                       title={task.title}
                     >
-                      {task.title}
+                      {task.recurring && '🔄 '}{task.title}
                     </div>
                   ))}
                   {dayTasks.length > 3 && (
@@ -156,8 +179,27 @@ export default function CalendarPage() {
           isOpen={isModalOpen}
           task={editingTask}
           onClose={() => { setIsModalOpen(false); setEditingTask(null); }}
-          onSave={() => {}}
+          onSave={async (taskData: any) => {
+            if (taskData.id) {
+              await updateTask({
+                id: taskData.id as Id<"tasks">,
+                title: taskData.title,
+                description: taskData.description,
+                assignee: taskData.assignee,
+                priority: taskData.priority,
+                project: taskData.project,
+                dueDate: taskData.dueDate,
+                timeEstimate: taskData.timeEstimate,
+                subtasks: taskData.subtasks,
+                comments: taskData.comments,
+                recurring: taskData.recurring,
+              });
+            }
+          }}
         />
+
+        {/* Command Palette */}
+        <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
     </div>
   );

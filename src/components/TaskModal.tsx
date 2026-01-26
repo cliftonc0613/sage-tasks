@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Subtask {
   id: string;
@@ -13,6 +13,13 @@ interface Comment {
   author: "clifton" | "sage" | "system";
   content: string;
   createdAt: string;
+  mentions?: string[];
+}
+
+interface RecurringConfig {
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  nextDue?: string;
 }
 
 interface Task {
@@ -24,8 +31,10 @@ interface Task {
   status: string;
   project?: string;
   dueDate?: string;
+  timeEstimate?: number;
   subtasks: Subtask[];
   comments: Comment[];
+  recurring?: RecurringConfig;
 }
 
 interface TaskModalProps {
@@ -40,8 +49,10 @@ interface TaskModalProps {
     priority: "low" | "medium" | "high";
     project?: string;
     dueDate?: string;
+    timeEstimate?: number;
     subtasks: Subtask[];
     comments: Comment[];
+    recurring?: RecurringConfig;
   }) => void;
 }
 
@@ -51,6 +62,8 @@ const projects = [
   'CT Web Design Shop',
   'CliftonAI YouTube Scripts',
   'Sage Tasks',
+  'my-prompt-library',
+  'Prompt Library',
   'Other',
 ];
 
@@ -63,12 +76,42 @@ function createSubtask(title: string): Subtask {
 }
 
 function createComment(content: string, author: "clifton" | "sage"): Comment {
+  // Parse @mentions
+  const mentionRegex = /@(clifton|sage)/gi;
+  const mentions = [...content.matchAll(mentionRegex)].map(m => m[1].toLowerCase());
+  
   return {
     id: crypto.randomUUID(),
     author,
     content,
     createdAt: new Date().toISOString(),
+    mentions: mentions.length > 0 ? mentions : undefined,
   };
+}
+
+function formatTimeEstimate(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+function renderCommentContent(content: string): React.ReactNode {
+  // Highlight @mentions
+  const parts = content.split(/(@(?:clifton|sage))/gi);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.toLowerCase() === '@clifton') {
+          return <span key={i} className="mention mention-clifton">@Clifton</span>;
+        }
+        if (part.toLowerCase() === '@sage') {
+          return <span key={i} className="mention mention-sage">@Sage</span>;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
 }
 
 export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
@@ -78,11 +121,14 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const [priority, setPriority] = useState<"low" | "medium" | "high">('medium');
   const [project, setProject] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [timeEstimate, setTimeEstimate] = useState<number | undefined>(undefined);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [recurring, setRecurring] = useState<RecurringConfig | undefined>(undefined);
   const [newSubtask, setNewSubtask] = useState('');
   const [newComment, setNewComment] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments'>('details');
+  const [isRecurring, setIsRecurring] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -92,8 +138,11 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setPriority(task.priority);
       setProject(task.project || '');
       setDueDate(task.dueDate || '');
+      setTimeEstimate(task.timeEstimate);
       setSubtasks(task.subtasks || []);
       setComments(task.comments || []);
+      setRecurring(task.recurring);
+      setIsRecurring(!!task.recurring);
     } else {
       setTitle('');
       setDescription('');
@@ -101,8 +150,11 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setPriority('medium');
       setProject('');
       setDueDate('');
+      setTimeEstimate(undefined);
       setSubtasks([]);
       setComments([]);
+      setRecurring(undefined);
+      setIsRecurring(false);
     }
     setActiveTab('details');
   }, [task, isOpen]);
@@ -119,8 +171,10 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       priority,
       project: project || undefined,
       dueDate: dueDate || undefined,
+      timeEstimate: timeEstimate || undefined,
       subtasks,
       comments,
+      recurring: isRecurring ? recurring : undefined,
     });
     onClose();
   };
@@ -148,6 +202,8 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setNewComment('');
     }
   };
+
+  const timePresets = [15, 30, 60, 120, 240, 480];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -270,6 +326,88 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     />
                   </div>
                 </div>
+
+                {/* Time Estimate */}
+                <div className="form-group">
+                  <label className="form-label">Time Estimate</label>
+                  <div className="time-estimate-row">
+                    <div className="time-presets">
+                      {timePresets.map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          className={`time-preset-btn ${timeEstimate === mins ? 'active' : ''}`}
+                          onClick={() => setTimeEstimate(mins)}
+                        >
+                          {formatTimeEstimate(mins)}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      value={timeEstimate || ''}
+                      onChange={(e) => setTimeEstimate(e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="input time-input"
+                      placeholder="mins"
+                      min="1"
+                    />
+                    {timeEstimate && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon"
+                        onClick={() => setTimeEstimate(undefined)}
+                        title="Clear"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recurring Toggle */}
+                <div className="form-group">
+                  <label className="form-label recurring-label">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => {
+                        setIsRecurring(e.target.checked);
+                        if (e.target.checked && !recurring) {
+                          setRecurring({ frequency: 'weekly', interval: 1 });
+                        }
+                      }}
+                    />
+                    🔄 Recurring Task
+                  </label>
+                  
+                  {isRecurring && (
+                    <div className="recurring-options">
+                      <span>Repeat every</span>
+                      <input
+                        type="number"
+                        value={recurring?.interval || 1}
+                        onChange={(e) => setRecurring(prev => ({ 
+                          ...prev!, 
+                          interval: parseInt(e.target.value) || 1 
+                        }))}
+                        className="input recurring-interval"
+                        min="1"
+                      />
+                      <select
+                        value={recurring?.frequency || 'weekly'}
+                        onChange={(e) => setRecurring(prev => ({ 
+                          ...prev!, 
+                          frequency: e.target.value as 'daily' | 'weekly' | 'monthly' 
+                        }))}
+                        className="input recurring-frequency"
+                      >
+                        <option value="daily">day(s)</option>
+                        <option value="weekly">week(s)</option>
+                        <option value="monthly">month(s)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -344,7 +482,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     onChange={(e) => setNewComment(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addComment())}
                     className="input"
-                    placeholder="Add a comment..."
+                    placeholder="Add a comment... (use @sage or @clifton to mention)"
                   />
                   <button
                     type="button"
@@ -366,13 +504,15 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                       <div key={comment.id} className="comment-item">
                         <div className="comment-header">
                           <span className={`comment-author ${comment.author}`}>
-                            {comment.author === 'sage' ? '🌿 Sage' : '👤 Clifton'}
+                            {comment.author === 'sage' ? '🌿 Sage' : comment.author === 'system' ? '🤖 System' : '👤 Clifton'}
                           </span>
                           <span className="comment-date">
                             {new Date(comment.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <p className="comment-content">{comment.content}</p>
+                        <p className="comment-content">
+                          {renderCommentContent(comment.content)}
+                        </p>
                       </div>
                     ))}
                   </div>

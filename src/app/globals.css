@@ -497,6 +497,7 @@ textarea.input {
    ============================================ */
 
 .task-card {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
@@ -1673,4 +1674,655 @@ textarea.input {
   color: var(--text-primary);
   min-width: 180px;
   text-align: center;
+}
+
+/* ============================================
+   COMMAND PALETTE
+   ============================================ */
+
+.command-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  z-index: 200;
+  animation: fadeIn 0.15s ease;
+}
+
+.command-palette {
+  width: 100%;
+  max-width: 560px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.command-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.command-header svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.command-input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-shortcuts {
+  display: flex;
+  gap: 8px;
+}
+
+.shortcut-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.command-options {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.command-option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.command-option-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.command-option-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.option-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.option-btn.active {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.command-select {
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.command-footer {
+  padding: 12px 20px;
+  background: var(--bg-tertiary);
+}
+
+.syntax-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.syntax-hint code {
+  background: var(--bg-card);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+.shortcut-badge {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+/* ============================================
+   ACTIVITY LOG
+   ============================================ */
+
+.board-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.board.with-activity {
+  flex: 1;
+}
+
+.activity-panel {
+  width: 320px;
+  min-width: 320px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+}
+
+.activity-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.activity-panel-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.activity-log.compact .activity-item {
+  padding: 8px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.activity-item:hover {
+  background: var(--bg-hover);
+}
+
+.activity-icon {
+  font-size: 14px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-main {
+  font-size: 13px;
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.activity-actor {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.activity-actor.sage {
+  color: var(--status-complete);
+}
+
+.activity-actor.clifton {
+  color: #3b82f6;
+}
+
+.activity-action {
+  color: var(--text-muted);
+}
+
+.activity-task {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.activity-details {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.activity-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.activity-loading,
+.activity-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ============================================
+   OVERDUE & TIME ESTIMATES
+   ============================================ */
+
+.task-card.overdue {
+  border-color: var(--status-high);
+  box-shadow: 0 0 0 1px var(--status-high-bg);
+}
+
+.task-card.due-soon {
+  border-color: var(--status-medium);
+}
+
+.overdue-banner {
+  background: var(--status-high-bg);
+  color: var(--status-high);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  margin: -14px -14px 10px -14px;
+  text-align: center;
+  border-radius: 9px 9px 0 0;
+}
+
+.task-date.overdue {
+  color: var(--status-high);
+}
+
+.task-date.due-soon {
+  color: var(--status-medium);
+}
+
+.time-estimate {
+  color: var(--accent) !important;
+}
+
+.recurring-badge {
+  font-size: 12px;
+}
+
+.recurring-indicator {
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+/* ============================================
+   TASK SELECTION
+   ============================================ */
+
+.task-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+.task-select-checkbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-default);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  z-index: 5;
+}
+
+.task-select-checkbox:hover {
+  border-color: var(--accent);
+}
+
+.task-select-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.task-select-checkbox svg {
+  width: 14px;
+  height: 14px;
+  color: white;
+}
+
+.bulk-select {
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bulk-select:hover {
+  border-color: var(--accent);
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* Time Estimate Input */
+.time-estimate-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.time-presets {
+  display: flex;
+  gap: 4px;
+}
+
+.time-preset-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.time-preset-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.time-preset-btn.active {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.time-input {
+  width: 70px;
+}
+
+/* Recurring Options */
+.recurring-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.recurring-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.recurring-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.recurring-interval {
+  width: 60px;
+  text-align: center;
+}
+
+.recurring-frequency {
+  width: 100px;
+}
+
+/* ============================================
+   MENTIONS
+   ============================================ */
+
+.mention {
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.mention-clifton {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.mention-sage {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--status-complete);
+}
+
+/* ============================================
+   BULK ACTIONS
+   ============================================ */
+
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--accent-muted);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.bulk-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.bulk-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-danger {
+  color: var(--status-high) !important;
+  border-color: var(--status-high) !important;
+}
+
+.btn-danger:hover {
+  background: var(--status-high-bg) !important;
+}
+
+/* Table checkbox */
+.table-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.data-table tr.selected td {
+  background: var(--accent-muted);
+}
+
+.data-table tr.overdue-row td {
+  background: var(--status-high-bg);
+}
+
+.time-cell {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ============================================
+   PROJECT COLORS
+   ============================================ */
+
+.project-tag {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Button active state */
+.btn.active,
+.btn-ghost.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 1024px) {
+  .activity-panel {
+    display: none;
+  }
+  
+  .bulk-actions-bar {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .bulk-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ============================================
+   DASHBOARD GRID
+   ============================================ */
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+
+.dashboard-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-activity {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
+}
+
+.activity-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.activity-card-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-card .activity-log {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-activity {
+    order: -1;
+  }
+  
+  .activity-card {
+    max-height: 300px;
+  }
+}
+
+/* Calendar overdue task */
+.calendar-task.overdue-task {
+  border: 1px solid var(--status-high);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }

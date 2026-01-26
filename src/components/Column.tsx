@@ -30,6 +30,9 @@ interface ColumnProps {
   onAddTask: (columnId: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  selectMode?: boolean;
+  selectedTasks?: Set<string>;
+  onToggleSelect?: (taskId: string) => void;
 }
 
 const columnConfig: Record<string, { icon: string; colorClass: string }> = {
@@ -40,7 +43,7 @@ const columnConfig: Record<string, { icon: string; colorClass: string }> = {
   'done': { icon: '', colorClass: 'done' },
 };
 
-export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask }: ColumnProps) {
+export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask, selectMode, selectedTasks, onToggleSelect }: ColumnProps) {
   const config = columnConfig[column.id] || { icon: '', colorClass: 'todo' };
 
   return (
@@ -86,6 +89,9 @@ export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask }: C
                 index={index}
                 onEdit={onEditTask}
                 onDelete={onDeleteTask}
+                selectMode={selectMode}
+                isSelected={selectedTasks?.has(task._id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
             {provided.placeholder}

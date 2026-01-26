@@ -15,6 +15,12 @@ interface Comment {
   createdAt: string;
 }
 
+interface RecurringConfig {
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  nextDue?: string;
+}
+
 interface Task {
   _id: string;
   title: string;
@@ -24,8 +30,10 @@ interface Task {
   status: string;
   project?: string;
   dueDate?: string;
+  timeEstimate?: number;
   subtasks: Subtask[];
   comments: Comment[];
+  recurring?: RecurringConfig;
   order: number;
   createdAt: string;
 }
@@ -35,6 +43,9 @@ interface TaskCardProps {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
 }
 
 const priorityLabels = {
@@ -55,36 +66,99 @@ function calculateProgress(subtasks: Subtask[]): number {
   return Math.round((completed / subtasks.length) * 100);
 }
 
-export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
+function isOverdue(task: Task): boolean {
+  if (!task.dueDate || task.status === 'done') return false;
+  const due = new Date(task.dueDate);
+  due.setHours(23, 59, 59, 999);
+  return due < new Date();
+}
+
+function isDueSoon(task: Task): boolean {
+  if (!task.dueDate || task.status === 'done' || isOverdue(task)) return false;
+  const due = new Date(task.dueDate);
+  const now = new Date();
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays <= 2;
+}
+
+function formatTimeEstimate(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected, onToggleSelect }: TaskCardProps) {
   const progress = calculateProgress(task.subtasks);
   const hasSubtasks = task.subtasks.length > 0;
   const completedSubtasks = task.subtasks.filter(s => s.completed).length;
+  const overdue = isOverdue(task);
+  const dueSoon = isDueSoon(task);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (selectMode && onToggleSelect) {
+      e.stopPropagation();
+      onToggleSelect(task._id);
+    } else {
+      onEdit(task);
+    }
+  };
+
   return (
-    <Draggable draggableId={task._id} index={index}>
+    <Draggable draggableId={task._id} index={index} isDragDisabled={selectMode}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          onClick={() => onEdit(task)}
-          className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
+          onClick={handleClick}
+          className={`task-card ${snapshot.isDragging ? 'dragging' : ''} ${overdue ? 'overdue' : ''} ${dueSoon ? 'due-soon' : ''} ${isSelected ? 'selected' : ''}`}
         >
+          {/* Selection Checkbox */}
+          {selectMode && (
+            <div 
+              className={`task-select-checkbox ${isSelected ? 'checked' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect?.(task._id);
+              }}
+            >
+              {isSelected && (
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+          )}
+          {/* Overdue Banner */}
+          {overdue && (
+            <div className="overdue-banner">
+              ⚠️ Overdue
+            </div>
+          )}
+
           {/* Header: Date + Priority + Actions */}
           <div className="task-card-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {task.dueDate && (
-                <span className="task-date">{formatDate(task.dueDate)}</span>
+                <span className={`task-date ${overdue ? 'overdue' : ''} ${dueSoon ? 'due-soon' : ''}`}>
+                  {overdue ? '🔥 ' : dueSoon ? '⏰ ' : ''}{formatDate(task.dueDate)}
+                </span>
               )}
               <span className={`priority-badge ${task.priority}`}>
                 <span className="priority-dot" />
                 {priorityLabels[task.priority]}
               </span>
+              {task.recurring && (
+                <span className="recurring-badge" title={`Repeats every ${task.recurring.interval} ${task.recurring.frequency}`}>
+                  🔄
+                </span>
+              )}
             </div>
             <div className="task-card-actions">
               <button
@@ -129,6 +203,16 @@ export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
           {/* Footer: Meta + Assignee */}
           <div className="task-card-footer">
             <div className="task-card-meta">
+              {/* Time Estimate */}
+              {task.timeEstimate && (
+                <span className="task-meta-item time-estimate">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {formatTimeEstimate(task.timeEstimate)}
+                </span>
+              )}
+
               {/* Comments count */}
               {task.comments.length > 0 && (
                 <span className="task-meta-item">
@@ -141,7 +225,7 @@ export function TaskCard({ task, index, onEdit, onDelete }: TaskCardProps) {
 
               {/* Project */}
               {task.project && (
-                <span className="task-meta-item" title={task.project}>
+                <span className="task-meta-item project-tag" title={task.project}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>

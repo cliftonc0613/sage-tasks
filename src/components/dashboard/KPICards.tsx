@@ -5,25 +5,48 @@ interface Task {
   status: string;
   dueDate?: string;
   createdAt: string;
+  timeEstimate?: number;
+}
+
+interface Stats {
+  total: number;
+  completed: number;
+  pending: number;
+  overdue: number;
+  byAssignee: { clifton: number; sage: number; unassigned: number };
+  byStatus: { backlog: number; todo: number; 'in-progress': number; review: number; done: number };
+  totalEstimate: number;
+  completionRate: number;
 }
 
 interface KPICardsProps {
   tasks: Task[];
+  stats?: Stats;
 }
 
-export function KPICards({ tasks }: KPICardsProps) {
+function formatTime(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function KPICards({ tasks, stats }: KPICardsProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'done').length;
-  const pendingTasks = tasks.filter(t => t.status !== 'done').length;
-  const overdueTasks = tasks.filter(t => {
+  // Use stats if available, otherwise calculate
+  const totalTasks = stats?.total ?? tasks.length;
+  const completedTasks = stats?.completed ?? tasks.filter(t => t.status === 'done').length;
+  const pendingTasks = stats?.pending ?? tasks.filter(t => t.status !== 'done').length;
+  const overdueTasks = stats?.overdue ?? tasks.filter(t => {
     if (!t.dueDate || t.status === 'done') return false;
     const due = new Date(t.dueDate);
     due.setHours(0, 0, 0, 0);
     return due < today;
   }).length;
+  const completionRate = stats?.completionRate ?? (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
+  const totalEstimate = stats?.totalEstimate ?? tasks.reduce((sum, t) => sum + (t.timeEstimate || 0), 0);
 
   // Calculate trend (tasks created in last 7 days vs previous 7 days)
   const now = Date.now();
@@ -50,15 +73,15 @@ export function KPICards({ tasks }: KPICardsProps) {
     {
       title: 'Completed',
       value: completedTasks,
-      trend: `${totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(0) : 0}%`,
-      trendUp: true,
+      trend: `${completionRate}% rate`,
+      trendUp: completionRate > 50,
       icon: '✅',
       color: 'var(--status-complete)',
     },
     {
       title: 'In Progress',
       value: pendingTasks,
-      trend: 'Active',
+      trend: totalEstimate > 0 ? formatTime(totalEstimate) + ' total' : 'Active',
       trendUp: true,
       icon: '⚡',
       color: '#3b82f6',

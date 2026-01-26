@@ -6,11 +6,15 @@ import { Sidebar } from '@/components/Sidebar';
 import { KPICards } from '@/components/dashboard/KPICards';
 import { ProjectChart } from '@/components/dashboard/ProjectChart';
 import { TeamPerformance } from '@/components/dashboard/TeamPerformance';
+import { ActivityLog } from '@/components/ActivityLog';
+import { CommandPalette, useCommandPalette } from '@/components/CommandPalette';
 
 export default function DashboardPage() {
   const tasks = useQuery(api.tasks.list);
+  const stats = useQuery(api.tasks.stats);
+  const { isOpen: commandOpen, setIsOpen: setCommandOpen } = useCommandPalette();
 
-  if (tasks === undefined) {
+  if (tasks === undefined || stats === undefined) {
     return (
       <div className="app-container">
         <Sidebar activePage="dashboard" />
@@ -35,11 +39,15 @@ export default function DashboardPage() {
               <h1 className="dashboard-title">Dashboard</h1>
               <p className="dashboard-subtitle">Welcome back! Here's your project overview.</p>
             </div>
-            <button className="btn btn-primary">
+            <button 
+              className="btn btn-primary"
+              onClick={() => setCommandOpen(true)}
+            >
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              New Project
+              New Task
+              <span className="shortcut-badge">⌘K</span>
             </button>
           </div>
         </header>
@@ -47,16 +55,30 @@ export default function DashboardPage() {
         {/* Dashboard Content */}
         <main className="dashboard-content">
           {/* KPI Cards */}
-          <KPICards tasks={tasks} />
+          <KPICards tasks={tasks} stats={stats} />
 
-          {/* Charts Section */}
-          <div className="dashboard-grid">
-            <ProjectChart tasks={tasks} />
+          {/* Main Grid */}
+          <div className="dashboard-main-grid">
+            {/* Left Column: Charts */}
+            <div className="dashboard-charts">
+              <ProjectChart tasks={tasks} />
+              <TeamPerformance tasks={tasks} />
+            </div>
+
+            {/* Right Column: Activity */}
+            <div className="dashboard-activity">
+              <div className="activity-card">
+                <div className="activity-card-header">
+                  <h3>Recent Activity</h3>
+                </div>
+                <ActivityLog limit={10} compact />
+              </div>
+            </div>
           </div>
-
-          {/* Team Performance Table */}
-          <TeamPerformance tasks={tasks} />
         </main>
+
+        {/* Command Palette */}
+        <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
       </div>
     </div>
   );
