@@ -2710,7 +2710,7 @@ textarea.input {
   }
 }
 
-/* Tablet adjustments - keep sidebar visible */
+/* Tablet adjustments - keep sidebar visible and fixed, content slides under */
 @media (min-width: 769px) and (max-width: 1024px) {
   /* Hide mobile header and bottom nav on tablet */
   .mobile-header {
@@ -2721,7 +2721,7 @@ textarea.input {
     display: none;
   }
   
-  /* Keep sidebar visible and fixed on tablet */
+  /* Keep sidebar visible, fixed, and overlaying content */
   .sidebar {
     display: flex !important;
     position: fixed;
@@ -2729,13 +2729,27 @@ textarea.input {
     top: 0;
     height: 100vh;
     z-index: 100;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   }
   
-  /* Adjust main content for fixed sidebar */
+  /* Content slides underneath the sidebar */
   .app-container {
     padding-top: 0;
     padding-bottom: 0;
-    padding-left: 260px; /* sidebar width */
+    padding-left: 0; /* No padding - content goes under sidebar */
+  }
+  
+  /* Add left margin to main content so it starts visible */
+  .main-content {
+    margin-left: 260px; /* sidebar width */
+    transition: margin-left 0.3s ease;
+  }
+  
+  /* Board can scroll horizontally and content slides under sidebar */
+  .board {
+    margin-left: -260px;
+    padding-left: calc(260px + 24px);
+    width: calc(100% + 260px);
   }
   
   .column {
