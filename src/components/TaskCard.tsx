@@ -22,6 +22,14 @@ interface RecurringConfig {
   nextDue?: string;
 }
 
+interface TimeEntry {
+  id: string;
+  startTime: string;
+  endTime?: string;
+  notes?: string;
+  duration: number;
+}
+
 interface Task {
   _id: string;
   title: string;
@@ -35,13 +43,18 @@ interface Task {
   subtasks: Subtask[];
   comments: Comment[];
   recurring?: RecurringConfig;
+  blockedBy?: string[];
   order: number;
   createdAt: string;
+  timeEntries?: TimeEntry[];
+  totalTimeSpent?: number;
+  activeTimerStart?: string;
 }
 
 interface TaskCardProps {
   task: Task;
   index: number;
+  allTasks?: { _id: string; status: string }[];
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   selectMode?: boolean;
@@ -95,12 +108,23 @@ function formatTimeEstimate(minutes: number): string {
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
-export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected, onToggleSelect }: TaskCardProps) {
+export function TaskCard({ task, index, allTasks = [], onEdit, onDelete, selectMode, isSelected, onToggleSelect }: TaskCardProps) {
   const progress = calculateProgress(task.subtasks);
   const hasSubtasks = task.subtasks.length > 0;
   const completedSubtasks = task.subtasks.filter(s => s.completed).length;
   const overdue = isOverdue(task);
   const dueSoon = isDueSoon(task);
+
+  // Check if task has incomplete blockers
+  const hasIncompleteBlockers = task.blockedBy && task.blockedBy.length > 0 && 
+    task.blockedBy.some(blockerId => {
+      const blocker = allTasks.find(t => t._id === blockerId);
+      return blocker && blocker.status !== 'done';
+    });
+  const incompleteBlockerCount = task.blockedBy?.filter(blockerId => {
+    const blocker = allTasks.find(t => t._id === blockerId);
+    return blocker && blocker.status !== 'done';
+  }).length || 0;
 
   const formatDate = (dateStr: string) => {
     // Parse date parts directly to avoid timezone issues
@@ -126,7 +150,7 @@ export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={handleClick}
-          className={`task-card ${snapshot.isDragging ? 'dragging' : ''} ${overdue ? 'overdue' : ''} ${dueSoon ? 'due-soon' : ''} ${isSelected ? 'selected' : ''}`}
+          className={`task-card ${snapshot.isDragging ? 'dragging' : ''} ${overdue ? 'overdue' : ''} ${dueSoon ? 'due-soon' : ''} ${isSelected ? 'selected' : ''} ${hasIncompleteBlockers ? 'blocked' : ''}`}
         >
           {/* Selection Checkbox */}
           {selectMode && (
@@ -142,6 +166,12 @@ export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                 </svg>
               )}
+            </div>
+          )}
+          {/* Blocked Banner */}
+          {hasIncompleteBlockers && (
+            <div className="blocked-banner">
+              🔒 Blocked ({incompleteBlockerCount})
             </div>
           )}
           {/* Overdue Banner */}
@@ -212,13 +242,24 @@ export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected
           {/* Footer: Meta + Assignee */}
           <div className="task-card-footer">
             <div className="task-card-meta">
-              {/* Time Estimate */}
-              {task.timeEstimate && (
-                <span className="task-meta-item time-estimate">
+              {/* Timer Running Indicator */}
+              {task.activeTimerStart && (
+                <span className="task-meta-item timer-running" title="Timer running">
+                  <span className="timer-pulse-dot">●</span>
+                  <span>Recording</span>
+                </span>
+              )}
+
+              {/* Time Spent / Estimate */}
+              {(task.timeEstimate || task.totalTimeSpent) && (
+                <span className={`task-meta-item time-tracking ${task.totalTimeSpent && task.timeEstimate && task.totalTimeSpent > task.timeEstimate ? 'over-estimate' : ''}`}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {formatTimeEstimate(task.timeEstimate)}
+                  {task.totalTimeSpent ? formatTimeEstimate(task.totalTimeSpent) : '0m'}
+                  {task.timeEstimate && (
+                    <span className="time-separator">/ {formatTimeEstimate(task.timeEstimate)}</span>
+                  )}
                 </span>
               )}
 

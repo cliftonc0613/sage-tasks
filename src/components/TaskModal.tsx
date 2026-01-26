@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 
@@ -42,6 +42,14 @@ interface RecurringConfig {
   nextDue?: string;
 }
 
+interface TimeEntry {
+  id: string;
+  startTime: string;
+  endTime?: string;
+  notes?: string;
+  duration: number;
+}
+
 interface Task {
   _id: string;
   title: string;
@@ -55,11 +63,16 @@ interface Task {
   subtasks: Subtask[];
   comments: Comment[];
   recurring?: RecurringConfig;
+  timeEntries?: TimeEntry[];
+  totalTimeSpent?: number;
+  activeTimerStart?: string;
+  blockedBy?: string[];
 }
 
 interface TaskModalProps {
   isOpen: boolean;
   task?: Task | null;
+  allTasks?: { _id: string; title: string; status: string }[];
   onClose: () => void;
   onSave: (task: {
     id?: string;
@@ -73,6 +86,7 @@ interface TaskModalProps {
     subtasks: Subtask[];
     comments: Comment[];
     recurring?: RecurringConfig;
+    blockedBy?: string[];
   }) => void;
 }
 
@@ -134,9 +148,13 @@ function renderCommentContent(content: string): React.ReactNode {
   );
 }
 
-export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
+export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: TaskModalProps) {
   const addCommentMutation = useMutation(api.tasks.addComment);
   const updateTaskMutation = useMutation(api.tasks.update);
+  const startTimerMutation = useMutation(api.tasks.startTimer);
+  const stopTimerMutation = useMutation(api.tasks.stopTimer);
+  const addManualTimeMutation = useMutation(api.tasks.addManualTime);
+  const deleteTimeEntryMutation = useMutation(api.tasks.deleteTimeEntry);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -148,9 +166,18 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [recurring, setRecurring] = useState<RecurringConfig | undefined>(undefined);
+  const [blockedBy, setBlockedBy] = useState<string[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments' | 'time'>('details');
+  // Time tracking state
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [totalTimeSpent, setTotalTimeSpent] = useState(0);
+  const [activeTimerStart, setActiveTimerStart] = useState<string | undefined>();
+  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
+  const [manualTimeMinutes, setManualTimeMinutes] = useState('');
+  const [manualTimeNotes, setManualTimeNotes] = useState('');
+  const [timerNotes, setTimerNotes] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -170,6 +197,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
     timeEstimate: timeEstimate || undefined,
     subtasks,
     recurring: isRecurring ? recurring : undefined,
+    blockedBy: blockedBy.length > 0 ? blockedBy : undefined,
   };
   
   // Debounce the task data for auto-save (1.5 second delay)
@@ -209,6 +237,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
           timeEstimate: dataToSave.timeEstimate,
           subtasks: dataToSave.subtasks,
           recurring: dataToSave.recurring,
+          blockedBy: dataToSave.blockedBy,
         });
         lastSavedDataRef.current = debouncedTaskData;
         setLastSaved(new Date());
@@ -239,6 +268,11 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setComments(task.comments || []);
       setRecurring(task.recurring);
       setIsRecurring(!!task.recurring);
+      setBlockedBy(task.blockedBy || []);
+      // Time tracking
+      setTimeEntries(task.timeEntries || []);
+      setTotalTimeSpent(task.totalTimeSpent || 0);
+      setActiveTimerStart(task.activeTimerStart);
     } else {
       setTitle('');
       setDescription('');
@@ -251,10 +285,36 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       setComments([]);
       setRecurring(undefined);
       setIsRecurring(false);
+      setBlockedBy([]);
+      // Time tracking
+      setTimeEntries([]);
+      setTotalTimeSpent(0);
+      setActiveTimerStart(undefined);
     }
     setActiveTab('details');
     setLastSaved(null);
+    setManualTimeMinutes('');
+    setManualTimeNotes('');
+    setTimerNotes('');
   }, [task, isOpen]);
+
+  // Timer effect - update elapsed time every second when timer is running
+  useEffect(() => {
+    if (!activeTimerStart) {
+      setElapsedTime(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      const start = new Date(activeTimerStart).getTime();
+      const now = Date.now();
+      setElapsedTime(Math.floor((now - start) / 1000));
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeTimerStart]);
 
   if (!isOpen) return null;
 
@@ -272,6 +332,7 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
       subtasks,
       comments,
       recurring: isRecurring ? recurring : undefined,
+      blockedBy: blockedBy.length > 0 ? blockedBy : undefined,
     });
     onClose();
   };
@@ -315,6 +376,90 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   };
 
   const timePresets = [15, 30, 60, 120, 240, 480];
+
+  // Time tracking handlers
+  const handleStartTimer = async () => {
+    if (!task?._id) return;
+    try {
+      const result = await startTimerMutation({ taskId: task._id as Id<"tasks"> });
+      setActiveTimerStart(result.startTime);
+    } catch (error) {
+      console.error('Failed to start timer:', error);
+    }
+  };
+
+  const handleStopTimer = async () => {
+    if (!task?._id) return;
+    try {
+      const result = await stopTimerMutation({ 
+        taskId: task._id as Id<"tasks">,
+        notes: timerNotes || undefined,
+      });
+      setActiveTimerStart(undefined);
+      setTimeEntries(prev => [...prev, result.entry]);
+      setTotalTimeSpent(result.totalTimeSpent);
+      setTimerNotes('');
+    } catch (error) {
+      console.error('Failed to stop timer:', error);
+    }
+  };
+
+  const handleAddManualTime = async () => {
+    if (!task?._id || !manualTimeMinutes) return;
+    const minutes = parseInt(manualTimeMinutes);
+    if (isNaN(minutes) || minutes <= 0) return;
+    
+    try {
+      const result = await addManualTimeMutation({
+        taskId: task._id as Id<"tasks">,
+        duration: minutes,
+        notes: manualTimeNotes || undefined,
+      });
+      setTimeEntries(prev => [...prev, result.entry]);
+      setTotalTimeSpent(result.totalTimeSpent);
+      setManualTimeMinutes('');
+      setManualTimeNotes('');
+    } catch (error) {
+      console.error('Failed to add manual time:', error);
+    }
+  };
+
+  const handleDeleteTimeEntry = async (entryId: string) => {
+    if (!task?._id) return;
+    try {
+      await deleteTimeEntryMutation({
+        taskId: task._id as Id<"tasks">,
+        entryId,
+      });
+      const entryToDelete = timeEntries.find(e => e.id === entryId);
+      if (entryToDelete) {
+        setTimeEntries(prev => prev.filter(e => e.id !== entryId));
+        setTotalTimeSpent(prev => Math.max(0, prev - entryToDelete.duration));
+      }
+    } catch (error) {
+      console.error('Failed to delete time entry:', error);
+    }
+  };
+
+  const formatElapsedTime = (seconds: number): string => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimeEntry = (entry: TimeEntry): string => {
+    const date = new Date(entry.startTime);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getTimeProgress = (): number => {
+    if (!timeEstimate || timeEstimate === 0) return 0;
+    return Math.min(100, Math.round((totalTimeSpent / timeEstimate) * 100));
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -385,6 +530,14 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
           >
             💬 Comments ({comments.length})
           </button>
+          {task && (
+            <button
+              onClick={() => setActiveTab('time')}
+              className={`modal-tab ${activeTab === 'time' ? 'active' : ''} ${activeTimerStart ? 'timer-running' : ''}`}
+            >
+              ⏱️ Time {activeTimerStart && <span className="timer-pulse">●</span>}
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -550,6 +703,62 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     </div>
                   )}
                 </div>
+
+                {/* Blocked By - Task Dependencies */}
+                <div className="form-group">
+                  <label className="form-label">🔒 Blocked By</label>
+                  <p className="form-hint">Select tasks that must be completed before this one</p>
+                  
+                  {/* Selected blockers */}
+                  {blockedBy.length > 0 && (
+                    <div className="blocker-list">
+                      {blockedBy.map((blockerId) => {
+                        const blockerTask = allTasks.find(t => t._id === blockerId);
+                        if (!blockerTask) return null;
+                        const isComplete = blockerTask.status === 'done';
+                        return (
+                          <div key={blockerId} className={`blocker-item ${isComplete ? 'complete' : 'incomplete'}`}>
+                            <span className="blocker-status">
+                              {isComplete ? '✅' : '🔒'}
+                            </span>
+                            <span className="blocker-title">{blockerTask.title}</span>
+                            <button
+                              type="button"
+                              onClick={() => setBlockedBy(blockedBy.filter(id => id !== blockerId))}
+                              className="btn btn-ghost btn-icon blocker-remove"
+                              title="Remove blocker"
+                            >
+                              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add blocker dropdown */}
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value && !blockedBy.includes(e.target.value)) {
+                        setBlockedBy([...blockedBy, e.target.value]);
+                      }
+                    }}
+                    className="input"
+                  >
+                    <option value="">+ Add a blocking task...</option>
+                    {allTasks
+                      .filter(t => t._id !== task?._id && !blockedBy.includes(t._id))
+                      .map(t => (
+                        <option key={t._id} value={t._id}>
+                          {t.status === 'done' ? '✅ ' : ''}{t.title}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
               </>
             )}
 
@@ -659,6 +868,149 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
                     ))}
                   </div>
                 )}
+              </>
+            )}
+
+            {/* Time Tracking Tab */}
+            {activeTab === 'time' && task && (
+              <>
+                {/* Timer Section */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Timer</h4>
+                  <div className="timer-display">
+                    {activeTimerStart ? (
+                      <>
+                        <div className="timer-clock running">
+                          <span className="timer-value">{formatElapsedTime(elapsedTime)}</span>
+                          <span className="timer-label">elapsed</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={timerNotes}
+                          onChange={(e) => setTimerNotes(e.target.value)}
+                          className="input timer-notes-input"
+                          placeholder="What are you working on?"
+                        />
+                        <button 
+                          onClick={handleStopTimer}
+                          className="btn btn-danger timer-btn"
+                        >
+                          ⏹️ Stop Timer
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={handleStartTimer}
+                        className="btn btn-primary timer-btn"
+                      >
+                        ▶️ Start Timer
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Time Summary */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Summary</h4>
+                  <div className="time-summary">
+                    <div className="time-summary-row">
+                      <span>Time Spent:</span>
+                      <span className="time-value">{formatTimeEstimate(totalTimeSpent)}</span>
+                    </div>
+                    {timeEstimate && (
+                      <>
+                        <div className="time-summary-row">
+                          <span>Estimated:</span>
+                          <span className="time-value">{formatTimeEstimate(timeEstimate)}</span>
+                        </div>
+                        <div className="time-progress-container">
+                          <div className="time-progress-bar">
+                            <div 
+                              className={`time-progress-fill ${getTimeProgress() > 100 ? 'over' : ''}`}
+                              style={{ width: `${Math.min(100, getTimeProgress())}%` }}
+                            />
+                          </div>
+                          <span className={`time-progress-label ${getTimeProgress() > 100 ? 'over' : ''}`}>
+                            {getTimeProgress()}%
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Manual Time */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Add Manual Entry</h4>
+                  <div className="manual-time-form">
+                    <div className="manual-time-row">
+                      <input
+                        type="number"
+                        value={manualTimeMinutes}
+                        onChange={(e) => setManualTimeMinutes(e.target.value)}
+                        className="input manual-time-input"
+                        placeholder="Minutes"
+                        min="1"
+                      />
+                      <input
+                        type="text"
+                        value={manualTimeNotes}
+                        onChange={(e) => setManualTimeNotes(e.target.value)}
+                        className="input"
+                        placeholder="Notes (optional)"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddManualTime}
+                        className="btn btn-secondary"
+                        disabled={!manualTimeMinutes}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Entries List */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Time Entries ({timeEntries.length})</h4>
+                  {timeEntries.length === 0 ? (
+                    <div className="empty-state">
+                      <p>No time entries yet</p>
+                      <p>Start the timer or add time manually</p>
+                    </div>
+                  ) : (
+                    <div className="time-entries-list">
+                      {[...timeEntries].reverse().map((entry) => (
+                        <div key={entry.id} className="time-entry-item">
+                          <div className="time-entry-info">
+                            <span className="time-entry-duration">
+                              {formatTimeEstimate(entry.duration)}
+                            </span>
+                            <span className="time-entry-date">
+                              {formatTimeEntry(entry)}
+                            </span>
+                            {entry.notes && (
+                              <span className="time-entry-notes">{entry.notes}</span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTimeEntry(entry.id)}
+                            className="btn btn-ghost btn-icon"
+                            title="Delete entry"
+                            style={{ width: '24px', height: '24px' }}
+                          >
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
