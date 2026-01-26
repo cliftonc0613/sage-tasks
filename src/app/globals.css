@@ -711,10 +711,11 @@ textarea.input {
   animation: fadeIn 0.2s ease;
 }
 
-.modal {
-  width: 65%;
-  max-width: 1200px;
-  height: 75vh;
+.modal-overlay .modal {
+  width: 65% !important;
+  max-width: 1200px !important;
+  height: 75vh !important;
+  min-width: 600px;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
@@ -726,10 +727,11 @@ textarea.input {
 
 /* Mobile: full screen modal */
 @media (max-width: 768px) {
-  .modal {
-    width: 100%;
-    height: 100%;
-    max-width: none;
+  .modal-overlay .modal {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    min-width: unset;
     border-radius: 0;
   }
 }
