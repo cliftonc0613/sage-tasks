@@ -2710,23 +2710,32 @@ textarea.input {
   }
 }
 
-/* Tablet adjustments */
+/* Tablet adjustments - keep sidebar visible */
 @media (min-width: 769px) and (max-width: 1024px) {
+  /* Hide mobile header and bottom nav on tablet */
   .mobile-header {
-    display: flex;
+    display: none;
   }
   
   .bottom-nav {
-    display: flex;
+    display: none;
   }
   
+  /* Keep sidebar visible and fixed on tablet */
   .sidebar {
-    display: none !important;
+    display: flex !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 100;
   }
   
+  /* Adjust main content for fixed sidebar */
   .app-container {
-    padding-top: 60px;
-    padding-bottom: 80px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 260px; /* sidebar width */
   }
   
   .column {
