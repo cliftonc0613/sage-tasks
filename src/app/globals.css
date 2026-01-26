@@ -713,7 +713,7 @@ textarea.input {
 
 .modal {
   width: 100%;
-  max-width: 520px;
+  max-width: 720px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-default);
   border-radius: 16px;
@@ -766,7 +766,7 @@ textarea.input {
 
 .modal-body {
   padding: 24px;
-  max-height: 400px;
+  max-height: 550px;
   overflow-y: auto;
 }
 
