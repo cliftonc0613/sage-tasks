@@ -145,6 +145,26 @@ export function Board() {
       destination.index === source.index
     ) return;
 
+    // Check for incomplete blockers when moving to done
+    if (destination.droppableId === 'done') {
+      const task = tasks?.find(t => t._id === draggableId);
+      if (task?.blockedBy && task.blockedBy.length > 0) {
+        const hasIncompleteBlockers = task.blockedBy.some(blockerId => {
+          const blocker = tasks?.find(t => t._id === blockerId);
+          return blocker && blocker.status !== 'done';
+        });
+        if (hasIncompleteBlockers) {
+          const incompleteBlockers = task.blockedBy
+            .map(id => tasks?.find(t => t._id === id))
+            .filter(t => t && t.status !== 'done')
+            .map(t => t?.title)
+            .join(', ');
+          alert(`Cannot complete task: blocked by incomplete tasks:\n${incompleteBlockers}`);
+          return;
+        }
+      }
+    }
+
     await moveTask({
       id: draggableId as Id<"tasks">,
       newStatus: destination.droppableId as Task['status'],
@@ -180,6 +200,7 @@ export function Board() {
     subtasks: { id: string; title: string; completed: boolean }[];
     comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
     recurring?: { frequency: "daily" | "weekly" | "monthly"; interval: number };
+    blockedBy?: string[];
   }) => {
     if (taskData.id) {
       await updateTask({
@@ -194,6 +215,7 @@ export function Board() {
         subtasks: taskData.subtasks,
         comments: taskData.comments,
         recurring: taskData.recurring,
+        blockedBy: taskData.blockedBy as Id<"tasks">[] | undefined,
       });
     } else {
       await createTask({
@@ -208,6 +230,7 @@ export function Board() {
         subtasks: taskData.subtasks,
         comments: taskData.comments,
         recurring: taskData.recurring,
+        blockedBy: taskData.blockedBy as Id<"tasks">[] | undefined,
       });
     }
   };
@@ -442,6 +465,7 @@ export function Board() {
                       key={column.id}
                       column={{ id: column.id, title: column.title, taskIds: [] }}
                       tasks={columnTasks as any}
+                      allTasks={tasks?.map(t => ({ _id: t._id, status: t.status })) || []}
                       onAddTask={handleAddTask}
                       onEditTask={handleEditTask as any}
                       onDeleteTask={handleDeleteTask}
@@ -478,6 +502,7 @@ export function Board() {
         <TaskModal
           isOpen={isModalOpen}
           task={editingTask as any}
+          allTasks={tasks?.map(t => ({ _id: t._id, title: t.title, status: t.status })) || []}
           onClose={() => {
             setIsModalOpen(false);
             setEditingTask(null);

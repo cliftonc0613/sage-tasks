@@ -27,6 +27,7 @@ interface Task {
 interface ColumnProps {
   column: Column;
   tasks: Task[];
+  allTasks?: { _id: string; status: string }[];
   onAddTask: (columnId: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
@@ -43,7 +44,7 @@ const columnConfig: Record<string, { icon: string; colorClass: string }> = {
   'done': { icon: '', colorClass: 'done' },
 };
 
-export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask, selectMode, selectedTasks, onToggleSelect }: ColumnProps) {
+export function Column({ column, tasks, allTasks = [], onAddTask, onEditTask, onDeleteTask, selectMode, selectedTasks, onToggleSelect }: ColumnProps) {
   const config = columnConfig[column.id] || { icon: '', colorClass: 'todo' };
 
   return (
@@ -87,6 +88,7 @@ export function Column({ column, tasks, onAddTask, onEditTask, onDeleteTask, sel
                 key={task._id}
                 task={task}
                 index={index}
+                allTasks={allTasks}
                 onEdit={onEditTask}
                 onDelete={onDeleteTask}
                 selectMode={selectMode}

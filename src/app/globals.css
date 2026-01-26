@@ -2001,6 +2001,88 @@ textarea.input {
   border-radius: 9px 9px 0 0;
 }
 
+/* Blocked Task Styles */
+.task-card.blocked {
+  border-color: #f59e0b;
+  position: relative;
+}
+
+.task-card.blocked::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(245, 158, 11, 0.05);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.blocked-banner {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  margin: -14px -14px 10px -14px;
+  text-align: center;
+  border-radius: 9px 9px 0 0;
+}
+
+/* Blocker List in Modal */
+.form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.blocker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.blocker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.blocker-item.incomplete {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.blocker-item.complete {
+  border-color: var(--status-complete);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.blocker-status {
+  font-size: 14px;
+}
+
+.blocker-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.blocker-remove {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.blocker-remove:hover {
+  opacity: 1;
+}
+
 .task-date.overdue {
   color: var(--status-high);
 }

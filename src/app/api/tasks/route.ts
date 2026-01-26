@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       subtasks: body.subtasks || [],
       comments: body.comments || [],
       recurring: body.recurring,
+      blockedBy: body.blockedBy,
     });
 
     // Fetch the created task
@@ -110,6 +111,7 @@ export async function PUT(request: NextRequest) {
     if (body.subtasks !== undefined) updateArgs.subtasks = body.subtasks;
     if (body.comments !== undefined) updateArgs.comments = body.comments;
     if (body.recurring !== undefined) updateArgs.recurring = body.recurring;
+    if (body.blockedBy !== undefined) updateArgs.blockedBy = body.blockedBy;
     if (body.order !== undefined) updateArgs.order = body.order;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
