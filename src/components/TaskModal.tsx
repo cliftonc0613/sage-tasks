@@ -156,6 +156,9 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const isInitialLoad = useRef(true);
 
+  // Track the last saved data to avoid unnecessary saves
+  const lastSavedDataRef = useRef<string | null>(null);
+  
   // Create a data object for auto-save
   const taskData = {
     title,
@@ -174,29 +177,40 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
 
   // Auto-save effect for existing tasks
   useEffect(() => {
-    // Skip initial load and only save for existing tasks
+    // Only save for existing tasks when modal is open
+    if (!task?._id || !isOpen) return;
+    
+    // Skip if this is the initial load (data matches what we just loaded)
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
+      lastSavedDataRef.current = debouncedTaskData;
       return;
     }
     
-    if (!task?._id || !isOpen) return;
+    // Skip if nothing has changed since last save
+    if (lastSavedDataRef.current === debouncedTaskData) {
+      return;
+    }
+    
+    // Parse the debounced data to ensure we save exactly what was debounced
+    const dataToSave = JSON.parse(debouncedTaskData);
     
     const saveTask = async () => {
       setIsSaving(true);
       try {
         await updateTaskMutation({
           id: task._id as Id<"tasks">,
-          title,
-          description,
-          assignee,
-          priority,
-          project: project || undefined,
-          dueDate: dueDate || undefined,
-          timeEstimate: timeEstimate || undefined,
-          subtasks,
-          recurring: isRecurring ? recurring : undefined,
+          title: dataToSave.title,
+          description: dataToSave.description,
+          assignee: dataToSave.assignee,
+          priority: dataToSave.priority,
+          project: dataToSave.project,
+          dueDate: dataToSave.dueDate,
+          timeEstimate: dataToSave.timeEstimate,
+          subtasks: dataToSave.subtasks,
+          recurring: dataToSave.recurring,
         });
+        lastSavedDataRef.current = debouncedTaskData;
         setLastSaved(new Date());
       } catch (error) {
         console.error('Auto-save failed:', error);
@@ -206,11 +220,12 @@ export function TaskModal({ isOpen, task, onClose, onSave }: TaskModalProps) {
     };
     
     saveTask();
-  }, [debouncedTaskData]);
+  }, [debouncedTaskData, task?._id, isOpen, updateTaskMutation]);
 
   useEffect(() => {
-    // Reset initial load flag when task changes
+    // Reset initial load flag and last saved data when task changes
     isInitialLoad.current = true;
+    lastSavedDataRef.current = null;
     
     if (task) {
       setTitle(task.title);
