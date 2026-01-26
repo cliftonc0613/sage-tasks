@@ -9,6 +9,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { MobileHeader } from '@/components/MobileHeader';
 import { TaskModal } from '@/components/TaskModal';
 import { CommandPalette, useCommandPalette } from '@/components/CommandPalette';
+import { parseDateString, formatDateDisplay, isDateOverdue } from '@/lib/date-utils';
 
 export default function ListPage() {
   const tasks = useQuery(api.tasks.list);
@@ -59,17 +60,12 @@ export default function ListPage() {
 
   const isOverdue = (task: any) => {
     if (!task.dueDate || task.status === 'done') return false;
-    const due = new Date(task.dueDate);
-    due.setHours(23, 59, 59, 999);
-    return due < new Date();
+    return isDateOverdue(task.dueDate);
   };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDateDisplay(dateStr, { month: 'short', day: 'numeric' });
   };
 
   const formatTimeEstimate = (minutes?: number) => {

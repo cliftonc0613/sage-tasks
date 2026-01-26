@@ -67,16 +67,22 @@ function calculateProgress(subtasks: Subtask[]): number {
   return Math.round((completed / subtasks.length) * 100);
 }
 
+function parseDateString(dateStr: string): Date {
+  // Parse YYYY-MM-DD without timezone issues
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day); // month is 0-indexed
+}
+
 function isOverdue(task: Task): boolean {
   if (!task.dueDate || task.status === 'done') return false;
-  const due = new Date(task.dueDate);
+  const due = parseDateString(task.dueDate);
   due.setHours(23, 59, 59, 999);
   return due < new Date();
 }
 
 function isDueSoon(task: Task): boolean {
   if (!task.dueDate || task.status === 'done' || isOverdue(task)) return false;
-  const due = new Date(task.dueDate);
+  const due = parseDateString(task.dueDate);
   const now = new Date();
   const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   return diffDays <= 2;
@@ -97,7 +103,9 @@ export function TaskCard({ task, index, onEdit, onDelete, selectMode, isSelected
   const dueSoon = isDueSoon(task);
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Parse date parts directly to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
