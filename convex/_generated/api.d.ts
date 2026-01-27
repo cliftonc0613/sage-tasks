@@ -12,6 +12,7 @@ import type * as github from "../github.js";
 import type * as notifications from "../notifications.js";
 import type * as tasks from "../tasks.js";
 import type * as telegram from "../telegram.js";
+import type * as templates from "../templates.js";
 
 import type {
   ApiFromModules,
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   tasks: typeof tasks;
   telegram: typeof telegram;
+  templates: typeof templates;
 }>;
 
 /**
