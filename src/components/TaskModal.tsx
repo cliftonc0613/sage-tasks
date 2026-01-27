@@ -470,7 +470,10 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
           width: '65%',
           height: '75vh',
           maxWidth: '1200px',
-          minWidth: '600px'
+          minWidth: '600px',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}
       >
         {/* Header */}
@@ -540,8 +543,8 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
           )}
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
             {/* Details Tab */}
             {activeTab === 'details' && (
               <>
