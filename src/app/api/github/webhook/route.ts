@@ -236,7 +236,7 @@ async function handlePullRequestEvent(payload: PRPayload): Promise<{ processed: 
               });
               // Add warning comment
               await convex.mutation(api.tasks.addComment, {
-                id: task._id,
+                taskId: task._id,
                 author: 'system',
                 content: `⚠️ PR #${pr.number} closed without merge. Task moved to on-hold.`,
               });
