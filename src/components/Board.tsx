@@ -53,7 +53,7 @@ type Task = {
   description: string;
   assignee: "clifton" | "sage" | "unassigned";
   priority: "low" | "medium" | "high";
-  status: "backlog" | "todo" | "in-progress" | "review" | "done";
+  status: "backlog" | "todo" | "in-progress" | "review" | "done" | "on-hold";
   project?: string;
   dueDate?: string;
   timeEstimate?: number;
