@@ -155,8 +155,11 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
   const stopTimerMutation = useMutation(api.tasks.stopTimer);
   const addManualTimeMutation = useMutation(api.tasks.addManualTime);
   const deleteTimeEntryMutation = useMutation(api.tasks.deleteTimeEntry);
+  const deleteTaskMutation = useMutation(api.tasks.remove);
   
   const [title, setTitle] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [description, setDescription] = useState('');
   const [assignee, setAssignee] = useState<"clifton" | "sage" | "unassigned">('unassigned');
   const [priority, setPriority] = useState<"low" | "medium" | "high">('medium');
@@ -296,6 +299,8 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
     setManualTimeMinutes('');
     setManualTimeNotes('');
     setTimerNotes('');
+    setShowDeleteConfirm(false);
+    setIsDeleting(false);
   }, [task, isOpen]);
 
   // Timer effect - update elapsed time every second when timer is running
@@ -438,6 +443,18 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
       }
     } catch (error) {
       console.error('Failed to delete time entry:', error);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!task?._id) return;
+    setIsDeleting(true);
+    try {
+      await deleteTaskMutation({ id: task._id as Id<"tasks"> });
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      setIsDeleting(false);
     }
   };
 
@@ -1011,21 +1028,59 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
 
           {/* Footer */}
           <div className="modal-footer">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-secondary"
-            >
-              {task ? 'Close' : 'Cancel'}
-            </button>
-            {!task && (
-              <button
-                type="submit"
-                className="btn btn-primary"
-              >
-                Create Task
-              </button>
+            {/* Delete button (left side, only for existing tasks) */}
+            {task && (
+              <div className="modal-footer-left">
+                {showDeleteConfirm ? (
+                  <div className="delete-confirm">
+                    <span className="delete-confirm-text">Delete this task?</span>
+                    <button
+                      type="button"
+                      onClick={handleDeleteTask}
+                      className="btn btn-danger"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="btn btn-secondary"
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="btn btn-danger-outline"
+                    title="Delete task"
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
+              </div>
             )}
+            
+            <div className="modal-footer-right">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn btn-secondary"
+              >
+                {task ? 'Close' : 'Cancel'}
+              </button>
+              {!task && (
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  Create Task
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </div>
