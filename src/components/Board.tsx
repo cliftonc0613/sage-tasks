@@ -92,6 +92,7 @@ export function Board() {
   const router = useRouter();
   const { isOpen: commandOpen, setIsOpen: setCommandOpen } = useCommandPalette();
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
   // Bulk selection handlers
   const toggleTaskSelection = useCallback((taskId: string) => {
@@ -243,6 +244,16 @@ export function Board() {
         if (filter === 'all') return true;
         return task.assignee === filter;
       })
+      .filter((task) => {
+        // Mobile search filter
+        if (!mobileSearchQuery.trim()) return true;
+        const query = mobileSearchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(query) ||
+          task.description?.toLowerCase().includes(query) ||
+          task.project?.toLowerCase().includes(query)
+        );
+      })
       .sort((a, b) => a.order - b.order);
   };
 
@@ -268,7 +279,12 @@ export function Board() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="Board" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => handleAddTask('todo')} />
+      <MobileHeader 
+        title="Board" 
+        onAddTask={() => handleAddTask('todo')}
+        searchQuery={mobileSearchQuery}
+        onSearchChange={setMobileSearchQuery}
+      />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}
@@ -314,6 +330,31 @@ export function Board() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </button>
+
+              {/* Desktop Search */}
+              <div className="search-input desktop-search">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search tasks..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
+                  className="input"
+                />
+                {mobileSearchQuery && (
+                  <button
+                    onClick={() => setMobileSearchQuery('')}
+                    className="search-clear-btn"
+                    aria-label="Clear search"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               
               <select
                 value={filter}

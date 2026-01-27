@@ -17,6 +17,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
   const { isOpen: commandOpen, setIsOpen: setCommandOpen } = useCommandPalette();
 
   const calendarData = useMemo(() => {
@@ -62,7 +63,17 @@ export default function CalendarPage() {
   const getTasksForDate = (date: Date) => {
     if (!tasks) return [];
     const dateStr = date.toISOString().split('T')[0];
-    return tasks.filter(task => task.dueDate === dateStr);
+    return tasks
+      .filter(task => task.dueDate === dateStr)
+      .filter(task => {
+        if (!mobileSearchQuery.trim()) return true;
+        const query = mobileSearchQuery.toLowerCase();
+        return (
+          task.title.toLowerCase().includes(query) ||
+          task.description?.toLowerCase().includes(query) ||
+          task.project?.toLowerCase().includes(query)
+        );
+      });
   };
 
   const isToday = (date: Date) => {
@@ -105,7 +116,12 @@ export default function CalendarPage() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="Calendar" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} />
+      <MobileHeader 
+        title="Calendar" 
+        onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }}
+        searchQuery={mobileSearchQuery}
+        onSearchChange={setMobileSearchQuery}
+      />
       <Sidebar activePage="calendar" />
       <div className="main-content">
         {/* Header */}

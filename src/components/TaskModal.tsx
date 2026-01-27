@@ -464,17 +464,8 @@ export function TaskModal({ isOpen, task, allTasks = [], onClose, onSave }: Task
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
-        className="modal" 
+        className="modal task-modal" 
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '65%',
-          height: '75vh',
-          maxWidth: '1200px',
-          minWidth: '600px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
       >
         {/* Header */}
         <div className="modal-header">

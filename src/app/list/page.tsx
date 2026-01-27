@@ -160,7 +160,12 @@ export default function ListPage() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="List" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} />
+      <MobileHeader 
+        title="List" 
+        onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}
