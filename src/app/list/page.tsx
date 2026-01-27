@@ -160,7 +160,7 @@ export default function ListPage() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="List" onOpenCommandPalette={() => setCommandOpen(true)} />
+      <MobileHeader title="List" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}

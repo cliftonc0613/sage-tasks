@@ -105,7 +105,7 @@ export default function CalendarPage() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="Calendar" onOpenCommandPalette={() => setCommandOpen(true)} />
+      <MobileHeader title="Calendar" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => { setEditingTask(null); setIsModalOpen(true); }} />
       <Sidebar activePage="calendar" />
       <div className="main-content">
         {/* Header */}

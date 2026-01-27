@@ -268,7 +268,7 @@ export function Board() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="Board" onOpenCommandPalette={() => setCommandOpen(true)} />
+      <MobileHeader title="Board" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => handleAddTask('todo')} />
       <Sidebar activePage="board" />
       <div className="main-content">
         {/* Header */}

@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <div className="app-container">
-      <MobileHeader title="Dashboard" onOpenCommandPalette={() => setCommandOpen(true)} />
+      <MobileHeader title="Dashboard" onOpenCommandPalette={() => setCommandOpen(true)} onAddTask={() => setCommandOpen(true)} />
       <Sidebar activePage="dashboard" />
       <div className="main-content">
         {/* Header */}

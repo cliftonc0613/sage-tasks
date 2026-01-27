@@ -6,9 +6,10 @@ interface MobileHeaderProps {
   title?: string;
   showSearch?: boolean;
   onOpenCommandPalette?: () => void;
+  onAddTask?: () => void;
 }
 
-export function MobileHeader({ title = 'Sage Tasks', showSearch = true, onOpenCommandPalette }: MobileHeaderProps) {
+export function MobileHeader({ title = 'Sage Tasks', showSearch = true, onOpenCommandPalette, onAddTask }: MobileHeaderProps) {
   return (
     <header className="mobile-header">
       <div className="mobile-header-left">
@@ -25,7 +26,11 @@ export function MobileHeader({ title = 'Sage Tasks', showSearch = true, onOpenCo
             <SearchIcon />
           </button>
         )}
-        <button className="mobile-action-btn" aria-label="Add task">
+        <button 
+          className="mobile-action-btn" 
+          onClick={onAddTask}
+          aria-label="Add task"
+        >
           <PlusIcon />
         </button>
       </div>
