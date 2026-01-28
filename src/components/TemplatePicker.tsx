@@ -119,6 +119,12 @@ export function TemplatePicker({ isOpen, onClose }: TemplatePickerProps) {
                     {template.defaultProject && (
                       <span className="template-project">📁 {template.defaultProject}</span>
                     )}
+                    {(template as any).totalEstimatedDays && (
+                      <span className="template-duration">📅 ~{(template as any).totalEstimatedDays} days</span>
+                    )}
+                    {(template as any).category && (
+                      <span className="template-category">🏷️ {(template as any).category}</span>
+                    )}
                   </div>
                 </button>
               ))
@@ -168,12 +174,23 @@ export function TemplatePicker({ isOpen, onClose }: TemplatePickerProps) {
             </div>
 
             <div className="template-preview">
-              <label>Subtasks ({selectedTemplateData.subtasks.length})</label>
+              <label>
+                Subtasks ({selectedTemplateData.subtasks.length})
+                {(selectedTemplateData as any).totalEstimatedDays && (
+                  <span className="template-total-days"> • ~{(selectedTemplateData as any).totalEstimatedDays} days total</span>
+                )}
+              </label>
               <ul className="subtask-preview-list">
-                {selectedTemplateData.subtasks.map((subtask, i) => (
+                {((selectedTemplateData as any).subtasksEnhanced || selectedTemplateData.subtasks.map((s: string) => ({ title: s }))).map((subtask: any, i: number) => (
                   <li key={i} className="subtask-preview-item">
                     <span className="subtask-checkbox">○</span>
-                    {subtask}
+                    <span className="subtask-title">{subtask.title || subtask}</span>
+                    {subtask.timeEstimate && (
+                      <span className="subtask-estimate">⏱️ {Math.round(subtask.timeEstimate / 60)}h</span>
+                    )}
+                    {subtask.phase && (
+                      <span className="subtask-phase">{subtask.phase}</span>
+                    )}
                   </li>
                 ))}
               </ul>

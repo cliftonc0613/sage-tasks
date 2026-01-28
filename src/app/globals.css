@@ -3093,6 +3093,47 @@ html {
   color: var(--text-muted);
 }
 
+.template-duration {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.template-category {
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.template-total-days {
+  font-weight: normal;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: none;
+}
+
+.subtask-title {
+  flex: 1;
+}
+
+.subtask-estimate {
+  color: var(--accent);
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.subtask-phase {
+  color: var(--text-muted);
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Template Configure Step */
 .template-configure {
   padding: 16px;

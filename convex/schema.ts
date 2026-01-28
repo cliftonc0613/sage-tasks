@@ -8,10 +8,22 @@ export default defineSchema({
     description: v.string(),
     defaultPriority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     defaultProject: v.optional(v.string()),
-    subtasks: v.array(v.string()), // Array of subtask titles
+    subtasks: v.array(v.string()), // Array of subtask titles (legacy/simple format)
+    // Enhanced subtask format with metadata
+    subtasksEnhanced: v.optional(v.array(v.object({
+      title: v.string(),
+      timeEstimate: v.optional(v.number()), // in minutes
+      priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+      dueDayOffset: v.optional(v.number()), // days from project start
+      phase: v.optional(v.string()), // grouping for workflow phases
+    }))),
+    // Template metadata
+    totalEstimatedDays: v.optional(v.number()), // total project duration in days
+    category: v.optional(v.string()), // template category (e.g., "web-design", "development")
     createdAt: v.string(),
   })
-    .index("by_name", ["name"]),
+    .index("by_name", ["name"])
+    .index("by_category", ["category"]),
 
   tasks: defineTable({
     title: v.string(),
