@@ -108,6 +108,45 @@ export default defineSchema({
     .index("by_status_order", ["status", "order"])
     .index("by_project", ["project"]),
 
+  // Sales pipeline prospects
+  prospects: defineTable({
+    title: v.string(),
+    company: v.string(),
+    contactName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    website: v.optional(v.string()),
+    facebookUrl: v.optional(v.string()),
+    githubRepo: v.optional(v.string()),
+    loomUrl: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    location: v.optional(v.string()),
+    lastContacted: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    stage: v.union(
+      v.literal("lead"),
+      v.literal("site_built"),
+      v.literal("outreach"),
+      v.literal("contacted"),
+      v.literal("follow_up"),
+      v.literal("negotiating"),
+      v.literal("closed_won"),
+      v.literal("closed_lost")
+    ),
+    urgency: v.union(
+      v.literal("fresh"),
+      v.literal("warm"),
+      v.literal("cold"),
+      v.literal("no_contact")
+    ),
+    order: v.number(),
+    createdAt: v.string(),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_stage", ["stage"])
+    .index("by_stage_order", ["stage", "order"])
+    .index("by_urgency", ["urgency"]),
+
   // Activity log for tracking changes
   activity: defineTable({
     taskId: v.id("tasks"),
