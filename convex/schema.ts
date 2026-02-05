@@ -20,6 +20,14 @@ export default defineSchema({
     // Template metadata
     totalEstimatedDays: v.optional(v.number()), // total project duration in days
     category: v.optional(v.string()), // template category (e.g., "web-design", "development")
+    // Project-specific metadata for web project templates
+    projectMetadata: v.optional(v.object({
+      websiteType: v.optional(v.string()),
+      defaultTechnology: v.optional(v.string()),
+      defaultBudget: v.optional(v.string()),
+      estimatedHours: v.optional(v.number()),
+      projectCategory: v.optional(v.string()),
+    })),
     createdAt: v.string(),
   })
     .index("by_name", ["name"])
