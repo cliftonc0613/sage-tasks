@@ -1,149 +1,636 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { DragDropContext, DropResult, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useState, useCallback, useEffect } from 'react';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { useRouter } from 'next/navigation';
+import { Column } from '../../components/Column';
+import { Sidebar } from '../../components/Sidebar';
+import { BottomNav } from '../../components/BottomNav';
+import { MobileHeader } from '../../components/MobileHeader';
 
-// Prospect type
-type Prospect = {
-  id: string;
-  title: string;
-  company: string;
+// Export projects to CSV
+function exportToCSV(projects: WebProject[]) {
+  const headers = ['Client', 'Website Type', 'Stage', 'Budget', 'Technology', 'Launch Date', 'Contact', 'Phone', 'Email', 'Notes', 'Created At'];
+  const rows = projects.map(p => [
+    p.client,
+    p.websiteType,
+    p.stage,
+    p.budget || '',
+    p.technology || '',
+    p.launchDate || '',
+    p.contactName || '',
+    p.phone || '',
+    p.email || '',
+    p.notes?.replace(/"/g, '""') || '',
+    p.createdAt,
+  ]);
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `web-design-pipeline-${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+type WebProject = {
+  _id: string;
+  client: string;
+  websiteType: string;
   contactName?: string;
   phone?: string;
   email?: string;
   website?: string;
-  industry?: string;
-  location?: string;
+  stage: "lead" | "design" | "development" | "review" | "live" | "closed";
+  budget?: string;
+  technology?: string;
+  launchDate?: string;
   notes?: string;
-  stage: string;
-  urgency: 'fresh' | 'warm' | 'cold' | 'no_contact';
+  priority: "low" | "medium" | "high";
+  order: number;
+  createdAt: string;
+  updatedAt?: string;
+  assignee: "clifton" | "sage" | "unassigned";
+  subtasks: { id: string; title: string; completed: boolean }[];
+  comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
 };
 
-// Prospect form data
-type ProspectFormData = {
-  title: string;
-  company: string;
-  contactName?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  industry?: string;
-  location?: string;
-  notes?: string;
-  urgency: 'fresh' | 'warm' | 'cold' | 'no_contact';
-};
+// Web design specific columns
+const columns = [
+  { id: 'lead', title: 'Lead' },
+  { id: 'design', title: 'Design' },
+  { id: 'development', title: 'Development' },
+  { id: 'review', title: 'Review' },
+  { id: 'live', title: 'Live' },
+  { id: 'closed', title: 'Closed' },
+] as const;
 
-// Sample data
-const initialProspects: Prospect[] = [
-  { 
-    id: '1', 
-    title: 'Henderson Plumbing Website', 
-    company: 'Henderson Plumbing Services',
+// Sample web design projects
+const initialProjects: WebProject[] = [
+  {
+    _id: '1',
+    client: 'Henderson Plumbing Services',
+    websiteType: 'Business Website',
     contactName: 'Mike Henderson',
     phone: '+1-555-0123',
     email: 'mike@hendersonplumbing.com',
-    website: 'https://henderson-plumbing.com',
-    industry: 'plumbing',
-    location: 'Greenville, SC',
-    notes: 'Completed website, very satisfied customer',
-    stage: 'closed_won',
-    urgency: 'fresh'
+    website: 'https://cliftonc0613.github.io/henderson-plumbing/',
+    stage: 'closed',
+    budget: '$2,500',
+    technology: 'HTML/CSS/JS',
+    launchDate: '2024-01-15',
+    notes: 'Professional plumbing website with service pages and contact forms',
+    priority: 'high',
+    order: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [
+      { id: '1', title: 'Design mockups', completed: true },
+      { id: '2', title: 'HTML structure', completed: true },
+      { id: '3', title: 'CSS styling', completed: true },
+      { id: '4', title: 'JavaScript functionality', completed: true },
+      { id: '5', title: 'Mobile optimization', completed: true }
+    ],
+    comments: []
   },
-  { 
-    id: '2', 
-    title: 'Kicking Tree Lawn Care', 
-    company: 'Kicking Tree LLC',
-    contactName: 'John Tree',
-    phone: '+1-555-0456', 
+  {
+    _id: '2',
+    client: 'Kicking Tree Lawn Care',
+    websiteType: 'Service Business Site',
+    contactName: 'John Tree', 
+    phone: '+1-555-0456',
     email: 'john@kickingtreelawncare.com',
-    website: 'https://kicking-tree-lawn-care.vercel.app',
-    industry: 'landscaping',
-    location: 'Greenville, SC',
-    notes: 'StoryBrand implementation completed',
-    stage: 'closed_won',
-    urgency: 'fresh'
+    website: 'https://kicking-tree-lawn-care.vercel.app/',
+    stage: 'closed',
+    budget: '$3,000',
+    technology: 'HTML/CSS/JS + StoryBrand',
+    launchDate: '2024-02-01',
+    notes: 'StoryBrand framework implementation with conversion optimization',
+    priority: 'high',
+    order: 2,
+    createdAt: '2024-01-15T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [
+      { id: '1', title: 'StoryBrand interview', completed: true },
+      { id: '2', title: 'Wireframe creation', completed: true },
+      { id: '3', title: 'Design implementation', completed: true },
+      { id: '4', title: 'Content integration', completed: true },
+      { id: '5', title: 'Conversion optimization', completed: true }
+    ],
+    comments: []
   },
-  { 
-    id: '3', 
-    title: 'New Heights Tree Service', 
-    company: 'New Heights Tree Service',
+  {
+    _id: '3',
+    client: 'New Heights Tree Service',
+    websiteType: 'Tree Service Website',
     contactName: 'Sarah Heights',
     phone: '+1-555-0789',
     email: 'sarah@newheightstree.com',
-    industry: 'tree_services',
-    location: 'Anderson, SC',
-    notes: 'In development - 75% complete',
-    stage: 'negotiating',
-    urgency: 'warm'
+    stage: 'development',
+    budget: '$2,800',
+    technology: 'HTML/CSS/JS',
+    launchDate: '2024-02-15',
+    notes: 'Tree removal and trimming service website with before/after gallery',
+    priority: 'medium',
+    order: 1,
+    createdAt: '2024-01-20T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [
+      { id: '1', title: 'Design approval', completed: true },
+      { id: '2', title: 'Homepage build', completed: true },
+      { id: '3', title: 'Service pages', completed: false },
+      { id: '4', title: 'Gallery integration', completed: false },
+      { id: '5', title: 'Contact forms', completed: false }
+    ],
+    comments: []
   },
-  { 
-    id: '4', 
-    title: 'Blue Ridge Painting', 
-    company: 'Blue Ridge Painting Co',
+  {
+    _id: '4',
+    client: 'Blue Ridge Painting Co',
+    websiteType: 'Contractor Website',
     contactName: 'Tom Blue',
     phone: '+1-555-0321',
     email: 'tom@blueridgepainting.com',
-    industry: 'painting',
-    location: 'Spartanburg, SC', 
-    notes: 'Interested in website package',
-    stage: 'follow_up',
-    urgency: 'cold'
+    stage: 'design',
+    budget: '$2,200',
+    technology: 'HTML/CSS/JS',
+    launchDate: '2024-02-28',
+    notes: 'Interior and exterior painting contractor site with project portfolio',
+    priority: 'medium',
+    order: 1,
+    createdAt: '2024-02-01T00:00:00Z',
+    assignee: 'sage',
+    subtasks: [
+      { id: '1', title: 'Client consultation', completed: true },
+      { id: '2', title: 'Design concepts', completed: false },
+      { id: '3', title: 'Color scheme selection', completed: false }
+    ],
+    comments: []
   },
+  {
+    _id: '5',
+    client: 'Sunshine Roofing LLC',
+    websiteType: 'Roofing Business Site',
+    contactName: 'Dave Sunshine',
+    phone: '+1-555-0555',
+    email: 'dave@sunshineroofing.com',
+    stage: 'lead',
+    budget: '$3,500',
+    technology: 'TBD',
+    launchDate: '2024-03-15',
+    notes: 'Premium roofing contractor needs modern website with quote calculator',
+    priority: 'high',
+    order: 1,
+    createdAt: '2024-02-04T00:00:00Z',
+    assignee: 'unassigned',
+    subtasks: [],
+    comments: []
+  }
 ];
 
-const stages = [
-  { id: 'lead', title: 'Lead' },
-  { id: 'site_built', title: 'Site Built' },
-  { id: 'outreach', title: 'Outreach' },
-  { id: 'contacted', title: 'Contacted' },
-  { id: 'follow_up', title: 'Follow Up' },
-  { id: 'negotiating', title: 'Negotiating' },
-  { id: 'closed_won', title: 'Closed Won' },
-  { id: 'closed_lost', title: 'Closed Lost' }
-];
+export default function PipelinePage() {
+  const [projects, setProjects] = useState<WebProject[]>(initialProjects);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<WebProject | null>(null);
+  const [targetColumn, setTargetColumn] = useState<string>('lead');
+  const [filter, setFilter] = useState<'all' | 'clifton' | 'sage'>('all');
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const router = useRouter();
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
-// Prospect Modal Component
-function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
+  // Bulk selection handlers
+  const toggleProjectSelection = useCallback((projectId: string) => {
+    setSelectedProjects(prev => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedProjects(new Set());
+    setSelectMode(false);
+  }, []);
+
+  const handleBulkMove = async (newStage: WebProject['stage']) => {
+    setProjects(prev => prev.map(project => 
+      selectedProjects.has(project._id) 
+        ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
+        : project
+    ));
+    clearSelection();
+  };
+
+  const handleBulkAssign = async (assignee: WebProject['assignee']) => {
+    setProjects(prev => prev.map(project => 
+      selectedProjects.has(project._id) 
+        ? { ...project, assignee, updatedAt: new Date().toISOString() }
+        : project
+    ));
+    clearSelection();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedProjects.size} projects?`)) return;
+    setProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
+    clearSelection();
+  };
+
+  const handleExport = () => {
+    exportToCSV(projects);
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) return;
+
+    setProjects(prev => prev.map(project => 
+      project._id === draggableId 
+        ? { 
+            ...project, 
+            stage: destination.droppableId as WebProject['stage'],
+            order: destination.index,
+            updatedAt: new Date().toISOString()
+          }
+        : project
+    ));
+  };
+
+  const handleAddProject = (columnId: string) => {
+    setTargetColumn(columnId);
+    setEditingProject(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditProject = (project: WebProject) => {
+    setEditingProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Delete this project?')) return;
+    setProjects(prev => prev.filter(p => p._id !== projectId));
+  };
+
+  const handleSaveProject = async (projectData: any) => {
+    if (editingProject) {
+      // Update existing project
+      setProjects(prev => prev.map(p => 
+        p._id === editingProject._id 
+          ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
+          : p
+      ));
+    } else {
+      // Create new project
+      const newProject: WebProject = {
+        _id: Date.now().toString(),
+        ...projectData,
+        stage: targetColumn as WebProject['stage'],
+        order: projects.filter(p => p.stage === targetColumn).length,
+        createdAt: new Date().toISOString(),
+        subtasks: [],
+        comments: [],
+      };
+      setProjects(prev => [...prev, newProject]);
+    }
+    setIsModalOpen(false);
+    setEditingProject(null);
+  };
+
+  const getProjectsForColumn = (columnId: string) => {
+    return projects
+      .filter((project) => project.stage === columnId)
+      .filter((project) => {
+        if (filter === 'all') return true;
+        return project.assignee === filter;
+      })
+      .filter((project) => {
+        // Mobile search filter
+        if (!mobileSearchQuery.trim()) return true;
+        const query = mobileSearchQuery.toLowerCase();
+        return (
+          project.client.toLowerCase().includes(query) ||
+          project.websiteType.toLowerCase().includes(query) ||
+          project.contactName?.toLowerCase().includes(query) ||
+          project.technology?.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => a.order - b.order);
+  };
+
+  const totalProjects = projects.length;
+  const cliftonProjectCount = projects.filter(p => p.assignee === 'clifton').length;
+  const sageProjectCount = projects.filter(p => p.assignee === 'sage').length;
+  const completedCount = projects.filter(p => p.stage === 'closed').length;
+  const liveCount = projects.filter(p => p.stage === 'live').length;
+
+  return (
+    <div className="app-container">
+      <MobileHeader 
+        title="Pipeline" 
+        onAddTask={() => handleAddProject('lead')}
+        searchQuery={mobileSearchQuery}
+        onSearchChange={setMobileSearchQuery}
+      />
+      <Sidebar activePage="pipeline" />
+      <div className="main-content">
+        {/* Header */}
+        <header className="header">
+          <div className="header-top">
+            {/* Logo & Title */}
+            <div className="header-title">
+              <div className="logo">🎨</div>
+              <div>
+                <h1>Web Design Pipeline</h1>
+                <p className="header-subtitle">Client Project Management</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="header-actions">
+              <button
+                onClick={() => setSelectMode(!selectMode)}
+                className={`btn btn-ghost btn-icon ${selectMode ? 'active' : ''}`}
+                title="Multi-select mode"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </button>
+
+              <button
+                onClick={handleExport}
+                className="btn btn-ghost btn-icon"
+                title="Export to CSV"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+
+              {/* Desktop Search */}
+              <div className="search-input desktop-search">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
+                  className="input"
+                />
+                {mobileSearchQuery && (
+                  <button
+                    onClick={() => setMobileSearchQuery('')}
+                    className="search-clear-btn"
+                    aria-label="Clear search"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="filter-select"
+              >
+                <option value="all">All Projects</option>
+                <option value="clifton">👤 Clifton</option>
+                <option value="sage">🌿 Sage</option>
+              </select>
+
+              <button
+                onClick={() => handleAddProject('lead')}
+                className="btn btn-primary"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Project
+                <span className="shortcut-badge">⌘K</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            <div className="stat-item">
+              <div className="stat-value">{totalProjects}</div>
+              <div className="stat-label">Total</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#3b82f6' }}>{cliftonProjectCount}</div>
+              <div className="stat-label">👤 Clifton</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{sageProjectCount}</div>
+              <div className="stat-label">🌿 Sage</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{liveCount}</div>
+              <div className="stat-label">🚀 Live</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{completedCount}</div>
+              <div className="stat-label">✅ Closed</div>
+            </div>
+          </div>
+
+          {/* View Tabs */}
+          <div className="nav-tabs">
+            <button className="nav-tab active">
+              Pipeline
+            </button>
+            <button
+              className="nav-tab"
+              onClick={() => router.push('/')}
+            >
+              Tasks
+            </button>
+            <button
+              className="nav-tab"
+              onClick={() => router.push('/calendar')}
+            >
+              Calendar
+            </button>
+            <button
+              className="nav-tab"
+              onClick={() => router.push('/dashboard')}
+            >
+              Dashboard
+            </button>
+          </div>
+        </header>
+
+        {/* Bulk Actions Bar */}
+        {selectedProjects.size > 0 && (
+          <div className="bulk-actions-bar">
+            <div className="bulk-count">
+              <span>{selectedProjects.size} selected</span>
+              <button onClick={clearSelection} className="btn btn-ghost btn-sm">
+                Clear
+              </button>
+            </div>
+            <div className="bulk-buttons">
+              <select
+                onChange={(e) => {
+                  if (e.target.value) handleBulkMove(e.target.value as WebProject['stage']);
+                  e.target.value = '';
+                }}
+                className="bulk-select"
+                defaultValue=""
+              >
+                <option value="" disabled>Move to...</option>
+                <option value="lead">Lead</option>
+                <option value="design">Design</option>
+                <option value="development">Development</option>
+                <option value="review">Review</option>
+                <option value="live">Live</option>
+                <option value="closed">Closed</option>
+              </select>
+              <select
+                onChange={(e) => {
+                  if (e.target.value) handleBulkAssign(e.target.value as WebProject['assignee']);
+                  e.target.value = '';
+                }}
+                className="bulk-select"
+                defaultValue=""
+              >
+                <option value="" disabled>Assign to...</option>
+                <option value="clifton">👤 Clifton</option>
+                <option value="sage">🌿 Sage</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+              <button onClick={handleBulkDelete} className="btn btn-danger btn-sm">
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="board-container">
+          {/* Pipeline */}
+          <main className="board">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="board-columns">
+                {columns.map((column) => {
+                  const columnProjects = getProjectsForColumn(column.id);
+
+                  return (
+                    <Column
+                      key={column.id}
+                      column={{ id: column.id, title: column.title, taskIds: [] }}
+                      tasks={columnProjects.map(p => ({
+                        ...p,
+                        title: p.client,
+                        description: p.websiteType,
+                        status: p.stage
+                      })) as any}
+                      allTasks={projects.map(p => ({ _id: p._id, status: p.stage })) || []}
+                      onAddTask={handleAddProject}
+                      onEditTask={(project: any) => handleEditProject(project as WebProject)}
+                      onDeleteTask={handleDeleteProject}
+                      selectMode={selectMode}
+                      selectedTasks={selectedProjects}
+                      onToggleSelect={toggleProjectSelection}
+                    />
+                  );
+                })}
+              </div>
+            </DragDropContext>
+          </main>
+        </div>
+
+        {/* Web Project Modal */}
+        <WebProjectModal
+          isOpen={isModalOpen}
+          project={editingProject}
+          targetStage={targetColumn}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProject(null);
+          }}
+          onSave={handleSaveProject}
+        />
+      </div>
+      <BottomNav />
+    </div>
+  );
+}
+
+// Web Project Modal Component
+function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   isOpen: boolean;
-  prospect: Prospect | null;
+  project: WebProject | null;
   targetStage: string;
   onClose: () => void;
-  onSave: (data: ProspectFormData) => void;
+  onSave: (data: any) => void;
 }) {
-  const [formData, setFormData] = useState<ProspectFormData>({
-    title: prospect?.title || '',
-    company: prospect?.company || '',
-    contactName: prospect?.contactName || '',
-    phone: prospect?.phone || '',
-    email: prospect?.email || '',
-    website: prospect?.website || '',
-    industry: prospect?.industry || '',
-    location: prospect?.location || '',
-    notes: prospect?.notes || '',
-    urgency: prospect?.urgency || 'fresh',
+  const [formData, setFormData] = useState({
+    client: project?.client || '',
+    websiteType: project?.websiteType || '',
+    contactName: project?.contactName || '',
+    phone: project?.phone || '',
+    email: project?.email || '',
+    website: project?.website || '',
+    budget: project?.budget || '',
+    technology: project?.technology || '',
+    launchDate: project?.launchDate || '',
+    notes: project?.notes || '',
+    priority: project?.priority || 'medium' as const,
+    assignee: project?.assignee || 'unassigned' as const,
   });
 
-  // Update form when prospect changes
+  // Update form when project changes
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        title: prospect?.title || '',
-        company: prospect?.company || '',
-        contactName: prospect?.contactName || '',
-        phone: prospect?.phone || '',
-        email: prospect?.email || '',
-        website: prospect?.website || '',
-        industry: prospect?.industry || '',
-        location: prospect?.location || '',
-        notes: prospect?.notes || '',
-        urgency: prospect?.urgency || 'fresh',
+        client: project?.client || '',
+        websiteType: project?.websiteType || '',
+        contactName: project?.contactName || '',
+        phone: project?.phone || '',
+        email: project?.email || '',
+        website: project?.website || '',
+        budget: project?.budget || '',
+        technology: project?.technology || '',
+        launchDate: project?.launchDate || '',
+        notes: project?.notes || '',
+        priority: project?.priority || 'medium',
+        assignee: project?.assignee || 'unassigned',
       });
     }
-  }, [isOpen, prospect]);
+  }, [isOpen, project]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.company.trim()) return;
+    if (!formData.client.trim() || !formData.websiteType.trim()) return;
     onSave(formData);
   };
 
@@ -155,16 +642,13 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
         <div className="modal-header">
           <div className="modal-title-group">
             <h2 className="modal-title">
-              {prospect ? 'Edit Prospect' : 'New Prospect'}
+              {project ? 'Edit Web Project' : 'New Web Project'}
             </h2>
-            {!prospect && (
-              <span className="modal-subtitle">Adding to {targetStage.replace('_', ' ')}</span>
+            {!project && (
+              <span className="modal-subtitle">Adding to {targetStage}</span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="btn btn-ghost btn-icon"
-          >
+          <button onClick={onClose} className="btn btn-ghost btn-icon">
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -173,36 +657,114 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
 
         <div className="modal-content">
           <form onSubmit={handleSubmit} className="task-form">
-            {/* Basic Information */}
+            {/* Project Information */}
             <div className="form-section">
-              <h3 className="form-section-title">Basic Information</h3>
+              <h3 className="form-section-title">Project Information</h3>
               <div className="form-grid">
                 <div className="form-field">
-                  <label className="form-label" htmlFor="title">Title *</label>
+                  <label className="form-label" htmlFor="client">Client Name *</label>
                   <input
-                    id="title"
+                    id="client"
                     type="text"
                     required
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="form-input"
-                    placeholder="e.g., Henderson Plumbing Website"
-                  />
-                </div>
-                
-                <div className="form-field">
-                  <label className="form-label" htmlFor="company">Company *</label>
-                  <input
-                    id="company"
-                    type="text"
-                    required
-                    value={formData.company}
-                    onChange={(e) => setFormData({...formData, company: e.target.value})}
+                    value={formData.client}
+                    onChange={(e) => setFormData({...formData, client: e.target.value})}
                     className="form-input"
                     placeholder="e.g., Henderson Plumbing Services"
                   />
                 </div>
                 
+                <div className="form-field">
+                  <label className="form-label" htmlFor="websiteType">Website Type *</label>
+                  <select
+                    id="websiteType"
+                    required
+                    value={formData.websiteType}
+                    onChange={(e) => setFormData({...formData, websiteType: e.target.value})}
+                    className="form-select"
+                  >
+                    <option value="">Select type...</option>
+                    <option value="Business Website">Business Website</option>
+                    <option value="E-commerce Store">E-commerce Store</option>
+                    <option value="Portfolio Site">Portfolio Site</option>
+                    <option value="Blog/News Site">Blog/News Site</option>
+                    <option value="Landing Page">Landing Page</option>
+                    <option value="Service Business">Service Business</option>
+                    <option value="Contractor Website">Contractor Website</option>
+                    <option value="Restaurant/Food">Restaurant/Food</option>
+                    <option value="Real Estate">Real Estate</option>
+                  </select>
+                </div>
+                
+                <div className="form-field">
+                  <label className="form-label" htmlFor="budget">Budget</label>
+                  <input
+                    id="budget"
+                    type="text"
+                    value={formData.budget}
+                    onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                    className="form-input"
+                    placeholder="e.g., $2,500"
+                  />
+                </div>
+                
+                <div className="form-field">
+                  <label className="form-label" htmlFor="technology">Technology Stack</label>
+                  <input
+                    id="technology"
+                    type="text"
+                    value={formData.technology}
+                    onChange={(e) => setFormData({...formData, technology: e.target.value})}
+                    className="form-input"
+                    placeholder="e.g., HTML/CSS/JS, React, WordPress"
+                  />
+                </div>
+                
+                <div className="form-field">
+                  <label className="form-label" htmlFor="launchDate">Target Launch Date</label>
+                  <input
+                    id="launchDate"
+                    type="date"
+                    value={formData.launchDate}
+                    onChange={(e) => setFormData({...formData, launchDate: e.target.value})}
+                    className="form-input"
+                  />
+                </div>
+                
+                <div className="form-field">
+                  <label className="form-label" htmlFor="priority">Priority</label>
+                  <select
+                    id="priority"
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value as any})}
+                    className="form-select"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                
+                <div className="form-field">
+                  <label className="form-label" htmlFor="assignee">Assignee</label>
+                  <select
+                    id="assignee"
+                    value={formData.assignee}
+                    onChange={(e) => setFormData({...formData, assignee: e.target.value as any})}
+                    className="form-select"
+                  >
+                    <option value="unassigned">Unassigned</option>
+                    <option value="clifton">👤 Clifton</option>
+                    <option value="sage">🌿 Sage</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="form-section">
+              <h3 className="form-section-title">Client Contact</h3>
+              <div className="form-grid">
                 <div className="form-field">
                   <label className="form-label" htmlFor="contactName">Contact Name</label>
                   <input
@@ -215,27 +777,6 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
                   />
                 </div>
                 
-                <div className="form-field">
-                  <label className="form-label" htmlFor="urgency">Urgency</label>
-                  <select
-                    id="urgency"
-                    value={formData.urgency}
-                    onChange={(e) => setFormData({...formData, urgency: e.target.value as any})}
-                    className="form-select"
-                  >
-                    <option value="fresh">Fresh</option>
-                    <option value="warm">Warm</option>
-                    <option value="cold">Cold</option>
-                    <option value="no_contact">No Contact</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="form-section">
-              <h3 className="form-section-title">Contact Information</h3>
-              <div className="form-grid">
                 <div className="form-field">
                   <label className="form-label" htmlFor="phone">Phone</label>
                   <input
@@ -261,38 +802,14 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
                 </div>
                 
                 <div className="form-field">
-                  <label className="form-label" htmlFor="website">Website</label>
+                  <label className="form-label" htmlFor="website">Current Website</label>
                   <input
                     id="website"
                     type="url"
                     value={formData.website}
                     onChange={(e) => setFormData({...formData, website: e.target.value})}
                     className="form-input"
-                    placeholder="https://company.com"
-                  />
-                </div>
-                
-                <div className="form-field">
-                  <label className="form-label" htmlFor="industry">Industry</label>
-                  <input
-                    id="industry"
-                    type="text"
-                    value={formData.industry}
-                    onChange={(e) => setFormData({...formData, industry: e.target.value})}
-                    className="form-input"
-                    placeholder="e.g., plumbing, landscaping"
-                  />
-                </div>
-                
-                <div className="form-field">
-                  <label className="form-label" htmlFor="location">Location</label>
-                  <input
-                    id="location"
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                    className="form-input"
-                    placeholder="e.g., Greenville, SC"
+                    placeholder="https://currentsite.com"
                   />
                 </div>
               </div>
@@ -301,14 +818,14 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
             {/* Notes */}
             <div className="form-section">
               <div className="form-field">
-                <label className="form-label" htmlFor="notes">Notes</label>
+                <label className="form-label" htmlFor="notes">Project Notes</label>
                 <textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
                   rows={4}
                   className="form-textarea"
-                  placeholder="Additional notes, next steps, conversation highlights..."
+                  placeholder="Project requirements, special features, client preferences..."
                 />
               </div>
             </div>
@@ -325,9 +842,9 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={!formData.title.trim() || !formData.company.trim()}
+                disabled={!formData.client.trim() || !formData.websiteType.trim()}
               >
-                {prospect ? 'Update Prospect' : 'Create Prospect'}
+                {project ? 'Update Project' : 'Create Project'}
               </button>
             </div>
           </form>
@@ -335,265 +852,4 @@ function ProspectModal({ isOpen, prospect, targetStage, onClose, onSave }: {
       </div>
     </div>
   );
-}
-
-export default function PipelinePage() {
-  const [prospects, setProspects] = useState<Prospect[]>(initialProspects);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
-  const [targetStage, setTargetStage] = useState<string>('lead');
-
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-
-    const { draggableId, destination } = result;
-    
-    setProspects(prev => prev.map(prospect => 
-      prospect.id === draggableId 
-        ? { ...prospect, stage: destination.droppableId }
-        : prospect
-    ));
-  };
-
-  const getProspectsForStage = (stageId: string) => {
-    return prospects.filter(p => p.stage === stageId);
-  };
-
-  const handleAddProspect = (stageId: string) => {
-    setTargetStage(stageId);
-    setEditingProspect(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditProspect = (prospect: Prospect) => {
-    setEditingProspect(prospect);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveProspect = (formData: ProspectFormData) => {
-    if (editingProspect) {
-      // Update existing prospect
-      setProspects(prev => prev.map(p => 
-        p.id === editingProspect.id 
-          ? { ...p, ...formData }
-          : p
-      ));
-    } else {
-      // Create new prospect
-      const newProspect: Prospect = {
-        id: Date.now().toString(),
-        ...formData,
-        stage: targetStage,
-      };
-      setProspects(prev => [...prev, newProspect]);
-    }
-    setIsModalOpen(false);
-    setEditingProspect(null);
-  };
-
-  const handleDeleteProspect = (prospectId: string) => {
-    if (confirm('Delete this prospect?')) {
-      setProspects(prev => prev.filter(p => p.id !== prospectId));
-    }
-  };
-
-  return (
-    <div className="app-container">
-      <div className="main-content">
-        {/* Header */}
-        <header className="header">
-          <div className="header-top">
-            <div className="header-title">
-              <div className="logo">🎯</div>
-              <div>
-                <h1>Sales Pipeline</h1>
-                <p className="header-subtitle">Prospect Management</p>
-              </div>
-            </div>
-            <div className="header-actions">
-              <button 
-                onClick={() => handleAddProspect('lead')}
-                className="btn btn-primary"
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New Prospect
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="stats-bar">
-            <div className="stat-item">
-              <div className="stat-value">{prospects.length}</div>
-              <div className="stat-label">Total</div>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{prospects.filter(p => p.stage === 'closed_won').length}</div>
-              <div className="stat-label">✅ Won</div>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <div className="stat-value" style={{ color: '#dc2626' }}>{prospects.filter(p => p.stage === 'closed_lost').length}</div>
-              <div className="stat-label">❌ Lost</div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="nav-tabs">
-            <button className="nav-tab active">Pipeline</button>
-            <button className="nav-tab">Tasks</button>
-          </div>
-        </header>
-
-        {/* Pipeline Board */}
-        <div className="board-container">
-          <main className="board">
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="board-columns">
-                {stages.map(stage => {
-                  const stageProspects = getProspectsForStage(stage.id);
-                  
-                  return (
-                    <div key={stage.id} className="column">
-                      {/* Column Header */}
-                      <div className="column-header">
-                        <div className="column-title">
-                          <div className="column-icon" />
-                          <h3>{stage.title}</h3>
-                          <span className="column-count">{stageProspects.length}</span>
-                        </div>
-                        <button 
-                          onClick={() => handleAddProspect(stage.id)}
-                          className="btn btn-ghost btn-icon" 
-                          title="Add prospect"
-                        >
-                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                      </div>
-                      
-                      {/* Droppable Area */}
-                      <Droppable droppableId={stage.id}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className={`column-content ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
-                          >
-                            {stageProspects.length === 0 && !snapshot.isDraggingOver && (
-                              <div className="column-empty">
-                                <div className="column-empty-icon">📝</div>
-                                <span>No prospects</span>
-                              </div>
-                            )}
-                            {stageProspects.map((prospect, index) => (
-                              <Draggable key={prospect.id} draggableId={prospect.id} index={index}>
-                                {(provided, snapshot) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
-                                    onClick={() => handleEditProspect(prospect)}
-                                  >
-                                    {/* Header with delete button */}
-                                    <div className="task-card-header">
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className={`priority-badge ${prospect.urgency}`}>
-                                          <span className="priority-dot" />
-                                          {prospect.urgency}
-                                        </span>
-                                      </div>
-                                      <div className="task-card-actions">
-                                        <button
-                                          onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            handleDeleteProspect(prospect.id); 
-                                          }}
-                                          className="btn btn-ghost btn-icon"
-                                          title="Delete"
-                                          style={{ width: '24px', height: '24px' }}
-                                        >
-                                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    </div>
-                                    
-                                    <h4 className="task-card-title">{prospect.title}</h4>
-                                    <p className="task-card-desc">{prospect.company}</p>
-                                    {prospect.contactName && (
-                                      <p className="task-card-desc" style={{ fontSize: '12px', color: '#888' }}>
-                                        {prospect.contactName}
-                                      </p>
-                                    )}
-                                    
-                                    {/* Footer with contact info */}
-                                    <div className="task-card-footer">
-                                      <div className="task-card-meta">
-                                        {prospect.phone && (
-                                          <span className="task-meta-item">📞</span>
-                                        )}
-                                        {prospect.email && (
-                                          <span className="task-meta-item">📧</span>
-                                        )}
-                                        {prospect.website && (
-                                          <span className="task-meta-item">🌐</span>
-                                        )}
-                                        {prospect.industry && (
-                                          <span className="task-meta-item project-tag">
-                                            {prospect.industry}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-
-                      {/* Column Footer */}
-                      <div className="column-footer">
-                        <button 
-                          onClick={() => handleAddProspect(stage.id)}
-                          className="add-task-btn"
-                        >
-                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          Add Prospect
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </DragDropContext>
-          </main>
-        </div>
-
-        {/* Prospect Modal */}
-        <ProspectModal
-          isOpen={isModalOpen}
-          prospect={editingProspect}
-          targetStage={targetStage}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingProspect(null);
-          }}
-          onSave={handleSaveProspect}
-        />
-      </div>
-    </div>
-  );
-}
 }
