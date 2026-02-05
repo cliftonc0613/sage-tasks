@@ -93,7 +93,8 @@ export const create = mutation({
       v.literal("review"),
       v.literal("done"),
       v.literal("on-hold"),
-      v.literal("follow-up")
+      v.literal("follow-up"),
+      v.literal("contacted")
     ),
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
@@ -175,7 +176,8 @@ export const update = mutation({
       v.literal("review"),
       v.literal("done"),
       v.literal("on-hold"),
-      v.literal("follow-up")
+      v.literal("follow-up"),
+      v.literal("contacted")
     )),
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
@@ -290,7 +292,8 @@ export const move = mutation({
       v.literal("review"),
       v.literal("done"),
       v.literal("on-hold"),
-      v.literal("follow-up")
+      v.literal("follow-up"),
+      v.literal("contacted")
     ),
     newOrder: v.number(),
     force: v.optional(v.boolean()), // Allow forcing move even with incomplete blockers
@@ -403,7 +406,8 @@ export const bulkUpdate = mutation({
       v.literal("review"),
       v.literal("done"),
       v.literal("on-hold"),
-      v.literal("follow-up")
+      v.literal("follow-up"),
+      v.literal("contacted")
     )),
     assignee: v.optional(v.union(v.literal("clifton"), v.literal("sage"), v.literal("unassigned"))),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),

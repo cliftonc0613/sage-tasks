@@ -37,7 +37,8 @@ export default defineSchema({
       v.literal("review"),
       v.literal("done"),
       v.literal("on-hold"),
-      v.literal("follow-up")
+      v.literal("follow-up"),
+      v.literal("contacted")
     ),
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
