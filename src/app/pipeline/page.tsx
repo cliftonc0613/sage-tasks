@@ -142,17 +142,17 @@ const sampleProjects: WebProject[] = [
 ];
 
 export default function PipelinePage() {
-  // Temporarily use local state until Convex projects table is deployed
-  const [projects, setProjects] = useState<WebProject[]>(sampleProjects);
-  const stats = null;
+  const projects = useQuery(api.projects.list);
+  const stats = useQuery(api.projects.stats);
+  const createProject = useMutation(api.projects.create);
+  const updateProject = useMutation(api.projects.update);
+  const moveProject = useMutation(api.projects.move);
+  const deleteProject = useMutation(api.projects.remove);
+  const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
+  const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
   
-  // Temporarily disable Convex mutations until projects table is deployed
-  const createProject = null;
-  const updateProject = null;
-  const moveProject = null;
-  const deleteProject = null;
-  const bulkUpdateProjects = null;
-  const bulkDeleteProjects = null;
+  // Fallback to sample data if Convex projects table doesn't exist yet
+  const projectsData = projects || sampleProjects;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
@@ -182,9 +182,9 @@ export default function PipelinePage() {
   }, []);
 
   const handleBulkMove = async (newStage: WebProject['stage']) => {
-    if (!projects) return;
+    if (!projectsData) return;
     
-    const movingProjects = projects.filter(p => selectedProjects.has(p._id));
+    const movingProjects = projectsData.filter(p => selectedProjects.has(p._id));
     const stageEmoji = {
       'lead': '🎯',
       'design': '🎨', 
@@ -194,12 +194,13 @@ export default function PipelinePage() {
       'closed': '✅'
     };
     
-    // Temporarily use local state instead of Convex
-    setProjects(prev => prev.map(project => 
-      selectedProjects.has(project._id) 
-        ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
-        : project
-    ));
+    // Use Convex mutation if available, otherwise fallback to local state
+    if (bulkUpdateProjects) {
+      await bulkUpdateProjects({
+        ids: Array.from(selectedProjects) as Id<"projects">[],
+        updates: { stage: newStage }
+      });
+    }
     
     // Send bulk move notification
     sendTelegramNotification(
@@ -213,17 +214,18 @@ export default function PipelinePage() {
   };
 
   const handleBulkAssign = async (assignee: WebProject['assignee']) => {
-    if (!projects) return;
+    if (!projectsData) return;
     
-    const assigningProjects = projects.filter(p => selectedProjects.has(p._id));
+    const assigningProjects = projectsData.filter(p => selectedProjects.has(p._id));
     const assigneeLabel = assignee === 'clifton' ? '👤 Clifton' : assignee === 'sage' ? '🌿 Sage' : 'Unassigned';
     
-    // Temporarily use local state instead of Convex
-    setProjects(prev => prev.map(project => 
-      selectedProjects.has(project._id) 
-        ? { ...project, assignee, updatedAt: new Date().toISOString() }
-        : project
-    ));
+    // Use Convex mutation if available
+    if (bulkUpdateProjects) {
+      await bulkUpdateProjects({
+        ids: Array.from(selectedProjects) as Id<"projects">[],
+        updates: { assignee }
+      });
+    }
     
     // Send bulk assign notification
     sendTelegramNotification(
@@ -237,13 +239,17 @@ export default function PipelinePage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!projects) return;
+    if (!projectsData) return;
     
-    const deletingProjects = projects.filter(p => selectedProjects.has(p._id));
+    const deletingProjects = projectsData.filter(p => selectedProjects.has(p._id));
     if (!confirm(`Delete ${selectedProjects.size} projects?`)) return;
     
-    // Temporarily use local state instead of Convex
-    setProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
+    // Use Convex mutation if available
+    if (bulkDeleteProjects) {
+      await bulkDeleteProjects({
+        ids: Array.from(selectedProjects) as Id<"projects">[]
+      });
+    }
     
     // Send bulk delete notification
     sendTelegramNotification(
@@ -256,12 +262,12 @@ export default function PipelinePage() {
   };
 
   const handleExport = () => {
-    if (!projects) return;
-    exportToCSV(projects);
+    if (!projectsData) return;
+    exportToCSV(projectsData);
   };
 
   const handleDragEnd = async (result: DropResult) => {
-    if (!projects) return;
+    if (!projectsData) return;
     
     const { destination, source, draggableId } = result;
 
@@ -272,20 +278,17 @@ export default function PipelinePage() {
     ) return;
 
     // Find the project being moved
-    const movingProject = projects.find(p => p._id === draggableId);
+    const movingProject = projectsData.find(p => p._id === draggableId);
     if (!movingProject) return;
 
-    // Temporarily use local state instead of Convex
-    setProjects(prev => prev.map(project => 
-      project._id === draggableId 
-        ? { 
-            ...project, 
-            stage: destination.droppableId as WebProject['stage'],
-            order: destination.index,
-            updatedAt: new Date().toISOString()
-          }
-        : project
-    ));
+    // Use Convex mutation if available
+    if (moveProject) {
+      await moveProject({
+        id: draggableId as Id<"projects">,
+        newStage: destination.droppableId as WebProject['stage'],
+        newOrder: destination.index
+      });
+    }
 
     // Send stage movement notification
     const fromStage = source.droppableId.replace('_', ' ').toUpperCase();
@@ -321,15 +324,17 @@ export default function PipelinePage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!projects) return;
+    if (!projectsData) return;
     
-    const projectToDelete = projects.find(p => p._id === projectId);
+    const projectToDelete = projectsData.find(p => p._id === projectId);
     if (!projectToDelete) return;
     
     if (!confirm('Delete this project?')) return;
     
-    // Temporarily use local state instead of Convex
-    setProjects(prev => prev.filter(p => p._id !== projectId));
+    // Use Convex mutation if available
+    if (deleteProject) {
+      await deleteProject({ id: projectId as Id<"projects"> });
+    }
     
     // Send deletion notification
     sendTelegramNotification(
@@ -357,8 +362,10 @@ export default function PipelinePage() {
 
   const handleSaveProject = async (projectData: any) => {
     if (projectData._delete && editingProject) {
-      // Delete project - temporarily use local state
-      setProjects(prev => prev.filter(p => p._id !== editingProject._id));
+      // Delete project - use Convex if available
+      if (deleteProject) {
+        await deleteProject({ id: editingProject._id });
+      }
       
       // Send deletion notification
       sendTelegramNotification(
@@ -374,12 +381,13 @@ export default function PipelinePage() {
     }
     
     if (editingProject) {
-      // Update existing project - temporarily use local state
-      setProjects(prev => prev.map(p => 
-        p._id === editingProject._id 
-          ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
-          : p
-      ));
+      // Update existing project - use Convex if available
+      if (updateProject) {
+        await updateProject({
+          id: editingProject._id,
+          ...projectData,
+        });
+      }
       
       // Send update notification
       sendTelegramNotification(
@@ -391,17 +399,15 @@ export default function PipelinePage() {
         `Priority: ${projectData.priority === 'high' ? '🔴 High' : projectData.priority === 'medium' ? '🟡 Medium' : '🟢 Low'}`
       );
     } else {
-      // Create new project - temporarily use local state
-      const newProject: WebProject = {
-        _id: Date.now().toString() as Id<"projects">,
-        ...projectData,
-        stage: targetColumn as WebProject['stage'],
-        order: projects.filter(p => p.stage === targetColumn).length,
-        createdAt: new Date().toISOString(),
-        subtasks: [],
-        comments: [],
-      };
-      setProjects(prev => [...prev, newProject]);
+      // Create new project - use Convex if available
+      if (createProject) {
+        await createProject({
+          ...projectData,
+          stage: targetColumn as WebProject['stage'],
+          subtasks: [],
+          comments: [],
+        });
+      }
       
       // Send new project notification
       sendTelegramNotification(
@@ -420,9 +426,9 @@ export default function PipelinePage() {
   };
 
   const getProjectsForColumn = (columnId: string) => {
-    if (!projects) return [];
+    if (!projectsData) return [];
     
-    return projects
+    return projectsData
       .filter((project) => project.stage === columnId)
       .filter((project) => {
         if (filter === 'all') return true;
@@ -442,11 +448,11 @@ export default function PipelinePage() {
       .sort((a, b) => a.order - b.order);
   };
 
-  const totalProjects = projects?.length || 0;
-  const cliftonProjectCount = projects?.filter(p => p.assignee === 'clifton').length || 0;
-  const sageProjectCount = projects?.filter(p => p.assignee === 'sage').length || 0;
-  const completedCount = projects?.filter(p => p.stage === 'closed').length || 0;
-  const liveCount = projects?.filter(p => p.stage === 'live').length || 0;
+  const totalProjects = projectsData?.length || 0;
+  const cliftonProjectCount = projectsData?.filter(p => p.assignee === 'clifton').length || 0;
+  const sageProjectCount = projectsData?.filter(p => p.assignee === 'sage').length || 0;
+  const completedCount = projectsData?.filter(p => p.stage === 'closed').length || 0;
+  const liveCount = projectsData?.filter(p => p.stage === 'live').length || 0;
 
   return (
     <div className="app-container">
@@ -659,7 +665,7 @@ export default function PipelinePage() {
                         description: p.websiteType,
                         status: p.stage
                       })) as any}
-                      allTasks={projects?.map(p => ({ _id: p._id, status: p.stage })) || []}
+                      allTasks={projectsData?.map(p => ({ _id: p._id, status: p.stage })) || []}
                       onAddTask={handleAddProject}
                       onEditTask={(project: any) => handleEditProject(project as WebProject)}
                       onDeleteTask={handleDeleteProject}
