@@ -167,7 +167,7 @@ const sampleProspects: Prospect[] = [
   }
 ];
 
-export default function SalesPipeline() {
+export function SalesPipeline() {
   const [prospects, setProspects] = useState<Prospect[]>(sampleProspects);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
@@ -534,3 +534,5 @@ export default function SalesPipeline() {
     </div>
   );
 }
+
+export default SalesPipeline;
