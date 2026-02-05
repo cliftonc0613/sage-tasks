@@ -163,7 +163,7 @@ export default function PipelinePage() {
   
   // Fallback to local state if projects table doesn't exist yet
   const [localProjects, setLocalProjects] = useState<WebProject[]>(sampleProjects);
-  const projectsData = projects || localProjects;
+  const projectsData = projects !== undefined ? projects : localProjects;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
@@ -507,16 +507,36 @@ export default function PipelinePage() {
   };
 
   const getProjectsForColumn = (columnId: string) => {
-    if (!projectsData) return [];
-    
-    return projectsData
+    // Show loading state if Convex data is still loading
+    if (projects === undefined) {
+      // Use sample data while loading to prevent flicker
+      return sampleProjects
+        .filter((project) => project.stage === columnId)
+        .filter((project) => {
+          if (filter === 'all') return true;
+          return project.assignee === filter;
+        })
+        .filter((project) => {
+          if (!mobileSearchQuery.trim()) return true;
+          const query = mobileSearchQuery.toLowerCase();
+          return (
+            project.client.toLowerCase().includes(query) ||
+            project.websiteType.toLowerCase().includes(query) ||
+            project.contactName?.toLowerCase().includes(query) ||
+            project.technology?.toLowerCase().includes(query)
+          );
+        })
+        .sort((a, b) => a.order - b.order);
+    }
+
+    // Use real data once loaded (projects will be [] if empty, or have real projects)
+    return projects
       .filter((project) => project.stage === columnId)
       .filter((project) => {
         if (filter === 'all') return true;
         return project.assignee === filter;
       })
       .filter((project) => {
-        // Mobile search filter
         if (!mobileSearchQuery.trim()) return true;
         const query = mobileSearchQuery.toLowerCase();
         return (
@@ -529,11 +549,13 @@ export default function PipelinePage() {
       .sort((a, b) => a.order - b.order);
   };
 
-  const totalProjects = projectsData?.length || 0;
-  const cliftonProjectCount = projectsData?.filter(p => p.assignee === 'clifton').length || 0;
-  const sageProjectCount = projectsData?.filter(p => p.assignee === 'sage').length || 0;
-  const completedCount = projectsData?.filter(p => p.stage === 'closed').length || 0;
-  const liveCount = projectsData?.filter(p => p.stage === 'live').length || 0;
+  // Use consistent data source for stats (same logic as getProjectsForColumn)
+  const statsData = projects !== undefined ? projects : sampleProjects;
+  const totalProjects = statsData?.length || 0;
+  const cliftonProjectCount = statsData?.filter(p => p.assignee === 'clifton').length || 0;
+  const sageProjectCount = statsData?.filter(p => p.assignee === 'sage').length || 0;
+  const completedCount = statsData?.filter(p => p.stage === 'closed').length || 0;
+  const liveCount = statsData?.filter(p => p.stage === 'live').length || 0;
 
   return (
     <div className="app-container">
@@ -764,7 +786,7 @@ export default function PipelinePage() {
                         description: p.websiteType,
                         status: p.stage
                       })) as any}
-                      allTasks={projectsData?.map(p => ({ _id: p._id, status: p.stage })) || []}
+                      allTasks={statsData?.map(p => ({ _id: p._id, status: p.stage })) || []}
                       onAddTask={handleAddProject}
                       onEditTask={(project: any) => handleEditProject(project as WebProject)}
                       onDeleteTask={handleDeleteProject}
