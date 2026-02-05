@@ -147,6 +147,51 @@ export default defineSchema({
     .index("by_stage_order", ["stage", "order"])
     .index("by_urgency", ["urgency"]),
 
+  // Web design projects pipeline
+  projects: defineTable({
+    client: v.string(),
+    websiteType: v.string(),
+    contactName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    website: v.optional(v.string()),
+    stage: v.union(
+      v.literal("lead"),
+      v.literal("design"),
+      v.literal("development"),
+      v.literal("review"),
+      v.literal("live"),
+      v.literal("closed")
+    ),
+    budget: v.optional(v.string()),
+    technology: v.optional(v.string()),
+    launchDate: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    order: v.number(),
+    assignee: v.union(v.literal("clifton"), v.literal("sage"), v.literal("unassigned")),
+    subtasks: v.array(
+      v.object({
+        id: v.string(),
+        title: v.string(),
+        completed: v.boolean(),
+      })
+    ),
+    comments: v.array(
+      v.object({
+        id: v.string(),
+        author: v.union(v.literal("clifton"), v.literal("sage"), v.literal("system")),
+        content: v.string(),
+        createdAt: v.string(),
+      })
+    ),
+    createdAt: v.string(),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_stage", ["stage"])
+    .index("by_stage_order", ["stage", "order"])
+    .index("by_assignee", ["assignee"]),
+
   // Activity log for tracking changes
   activity: defineTable({
     taskId: v.id("tasks"),

@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { useQuery, useMutation } from 'convex/react';
 import { useRouter } from 'next/navigation';
+import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 import { Column } from '../../components/Column';
 import { Sidebar } from '../../components/Sidebar';
 import { BottomNav } from '../../components/BottomNav';
@@ -42,7 +45,7 @@ function exportToCSV(projects: WebProject[]) {
 }
 
 type WebProject = {
-  _id: string;
+  _id: Id<"projects">;
   client: string;
   websiteType: string;
   contactName?: string;
@@ -73,8 +76,7 @@ const columns = [
   { id: 'closed', title: 'Closed' },
 ] as const;
 
-// Sample web design projects
-const initialProjects: WebProject[] = [
+// Using Convex for real-time projects data
   {
     _id: '1',
     client: 'Henderson Plumbing Services',
@@ -197,7 +199,15 @@ const initialProjects: WebProject[] = [
 ];
 
 export default function PipelinePage() {
-  const [projects, setProjects] = useState<WebProject[]>(initialProjects);
+  const projects = useQuery(api.projects.list);
+  const stats = useQuery(api.projects.stats);
+  const createProject = useMutation(api.projects.create);
+  const updateProject = useMutation(api.projects.update);
+  const moveProject = useMutation(api.projects.move);
+  const deleteProject = useMutation(api.projects.remove);
+  const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
+  const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('lead');
@@ -226,6 +236,8 @@ export default function PipelinePage() {
   }, []);
 
   const handleBulkMove = async (newStage: WebProject['stage']) => {
+    if (!projects) return;
+    
     const movingProjects = projects.filter(p => selectedProjects.has(p._id));
     const stageEmoji = {
       'lead': '🎯',
@@ -236,11 +248,11 @@ export default function PipelinePage() {
       'closed': '✅'
     };
     
-    setProjects(prev => prev.map(project => 
-      selectedProjects.has(project._id) 
-        ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
-        : project
-    ));
+    // Use Convex mutation to update projects
+    await bulkUpdateProjects({
+      ids: Array.from(selectedProjects) as Id<"projects">[],
+      updates: { stage: newStage }
+    });
     
     // Send bulk move notification
     sendTelegramNotification(
@@ -254,14 +266,16 @@ export default function PipelinePage() {
   };
 
   const handleBulkAssign = async (assignee: WebProject['assignee']) => {
+    if (!projects) return;
+    
     const assigningProjects = projects.filter(p => selectedProjects.has(p._id));
     const assigneeLabel = assignee === 'clifton' ? '👤 Clifton' : assignee === 'sage' ? '🌿 Sage' : 'Unassigned';
     
-    setProjects(prev => prev.map(project => 
-      selectedProjects.has(project._id) 
-        ? { ...project, assignee, updatedAt: new Date().toISOString() }
-        : project
-    ));
+    // Use Convex mutation to update projects
+    await bulkUpdateProjects({
+      ids: Array.from(selectedProjects) as Id<"projects">[],
+      updates: { assignee }
+    });
     
     // Send bulk assign notification
     sendTelegramNotification(
@@ -275,10 +289,15 @@ export default function PipelinePage() {
   };
 
   const handleBulkDelete = async () => {
+    if (!projects) return;
+    
     const deletingProjects = projects.filter(p => selectedProjects.has(p._id));
     if (!confirm(`Delete ${selectedProjects.size} projects?`)) return;
     
-    setProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
+    // Use Convex mutation to delete projects
+    await bulkDeleteProjects({
+      ids: Array.from(selectedProjects) as Id<"projects">[]
+    });
     
     // Send bulk delete notification
     sendTelegramNotification(
@@ -295,6 +314,8 @@ export default function PipelinePage() {
   };
 
   const handleDragEnd = async (result: DropResult) => {
+    if (!projects) return;
+    
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -307,16 +328,12 @@ export default function PipelinePage() {
     const movingProject = projects.find(p => p._id === draggableId);
     if (!movingProject) return;
 
-    setProjects(prev => prev.map(project => 
-      project._id === draggableId 
-        ? { 
-            ...project, 
-            stage: destination.droppableId as WebProject['stage'],
-            order: destination.index,
-            updatedAt: new Date().toISOString()
-          }
-        : project
-    ));
+    // Use Convex mutation to move project
+    await moveProject({
+      id: draggableId as Id<"projects">,
+      newStage: destination.droppableId as WebProject['stage'],
+      newOrder: destination.index
+    });
 
     // Send stage movement notification
     const fromStage = source.droppableId.replace('_', ' ').toUpperCase();
@@ -352,12 +369,15 @@ export default function PipelinePage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
+    if (!projects) return;
+    
     const projectToDelete = projects.find(p => p._id === projectId);
     if (!projectToDelete) return;
     
     if (!confirm('Delete this project?')) return;
     
-    setProjects(prev => prev.filter(p => p._id !== projectId));
+    // Use Convex mutation to delete project
+    await deleteProject({ id: projectId as Id<"projects"> });
     
     // Send deletion notification
     sendTelegramNotification(
@@ -386,7 +406,7 @@ export default function PipelinePage() {
   const handleSaveProject = async (projectData: any) => {
     if (projectData._delete && editingProject) {
       // Delete project
-      setProjects(prev => prev.filter(p => p._id !== editingProject._id));
+      await deleteProject({ id: editingProject._id });
       
       // Send deletion notification
       sendTelegramNotification(
@@ -403,11 +423,10 @@ export default function PipelinePage() {
     
     if (editingProject) {
       // Update existing project
-      setProjects(prev => prev.map(p => 
-        p._id === editingProject._id 
-          ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
-          : p
-      ));
+      await updateProject({
+        id: editingProject._id,
+        ...projectData,
+      });
       
       // Send update notification
       sendTelegramNotification(
@@ -420,16 +439,12 @@ export default function PipelinePage() {
       );
     } else {
       // Create new project
-      const newProject: WebProject = {
-        _id: Date.now().toString(),
+      const projectId = await createProject({
         ...projectData,
         stage: targetColumn as WebProject['stage'],
-        order: projects.filter(p => p.stage === targetColumn).length,
-        createdAt: new Date().toISOString(),
         subtasks: [],
         comments: [],
-      };
-      setProjects(prev => [...prev, newProject]);
+      });
       
       // Send new project notification
       sendTelegramNotification(
@@ -448,6 +463,8 @@ export default function PipelinePage() {
   };
 
   const getProjectsForColumn = (columnId: string) => {
+    if (!projects) return [];
+    
     return projects
       .filter((project) => project.stage === columnId)
       .filter((project) => {
@@ -468,11 +485,11 @@ export default function PipelinePage() {
       .sort((a, b) => a.order - b.order);
   };
 
-  const totalProjects = projects.length;
-  const cliftonProjectCount = projects.filter(p => p.assignee === 'clifton').length;
-  const sageProjectCount = projects.filter(p => p.assignee === 'sage').length;
-  const completedCount = projects.filter(p => p.stage === 'closed').length;
-  const liveCount = projects.filter(p => p.stage === 'live').length;
+  const totalProjects = projects?.length || 0;
+  const cliftonProjectCount = projects?.filter(p => p.assignee === 'clifton').length || 0;
+  const sageProjectCount = projects?.filter(p => p.assignee === 'sage').length || 0;
+  const completedCount = projects?.filter(p => p.stage === 'closed').length || 0;
+  const liveCount = projects?.filter(p => p.stage === 'live').length || 0;
 
   return (
     <div className="app-container">
@@ -685,7 +702,7 @@ export default function PipelinePage() {
                         description: p.websiteType,
                         status: p.stage
                       })) as any}
-                      allTasks={projects.map(p => ({ _id: p._id, status: p.stage })) || []}
+                      allTasks={projects?.map(p => ({ _id: p._id, status: p.stage })) || []}
                       onAddTask={handleAddProject}
                       onEditTask={(project: any) => handleEditProject(project as WebProject)}
                       onDeleteTask={handleDeleteProject}
