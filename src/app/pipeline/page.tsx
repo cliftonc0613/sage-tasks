@@ -226,26 +226,67 @@ export default function PipelinePage() {
   }, []);
 
   const handleBulkMove = async (newStage: WebProject['stage']) => {
+    const movingProjects = projects.filter(p => selectedProjects.has(p._id));
+    const stageEmoji = {
+      'lead': '🎯',
+      'design': '🎨', 
+      'development': '🛠️',
+      'review': '👀',
+      'live': '🚀',
+      'closed': '✅'
+    };
+    
     setProjects(prev => prev.map(project => 
       selectedProjects.has(project._id) 
         ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
         : project
     ));
+    
+    // Send bulk move notification
+    sendTelegramNotification(
+      `📊 BULK STAGE MOVE\n\n` +
+      `${stageEmoji[newStage]} Moved ${movingProjects.length} projects to ${newStage.toUpperCase()}\n\n` +
+      `Projects:\n` +
+      movingProjects.map(p => `• ${p.client}`).join('\n')
+    );
+    
     clearSelection();
   };
 
   const handleBulkAssign = async (assignee: WebProject['assignee']) => {
+    const assigningProjects = projects.filter(p => selectedProjects.has(p._id));
+    const assigneeLabel = assignee === 'clifton' ? '👤 Clifton' : assignee === 'sage' ? '🌿 Sage' : 'Unassigned';
+    
     setProjects(prev => prev.map(project => 
       selectedProjects.has(project._id) 
         ? { ...project, assignee, updatedAt: new Date().toISOString() }
         : project
     ));
+    
+    // Send bulk assign notification
+    sendTelegramNotification(
+      `👥 BULK ASSIGNMENT\n\n` +
+      `Assigned ${assigningProjects.length} projects to ${assigneeLabel}\n\n` +
+      `Projects:\n` +
+      assigningProjects.map(p => `• ${p.client}`).join('\n')
+    );
+    
     clearSelection();
   };
 
   const handleBulkDelete = async () => {
+    const deletingProjects = projects.filter(p => selectedProjects.has(p._id));
     if (!confirm(`Delete ${selectedProjects.size} projects?`)) return;
+    
     setProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
+    
+    // Send bulk delete notification
+    sendTelegramNotification(
+      `🗑️ BULK DELETE\n\n` +
+      `Deleted ${deletingProjects.length} projects:\n\n` +
+      deletingProjects.map(p => `• ${p.client} (${p.stage})`).join('\n')
+    );
+    
     clearSelection();
   };
 
@@ -262,6 +303,10 @@ export default function PipelinePage() {
       destination.index === source.index
     ) return;
 
+    // Find the project being moved
+    const movingProject = projects.find(p => p._id === draggableId);
+    if (!movingProject) return;
+
     setProjects(prev => prev.map(project => 
       project._id === draggableId 
         ? { 
@@ -272,6 +317,27 @@ export default function PipelinePage() {
           }
         : project
     ));
+
+    // Send stage movement notification
+    const fromStage = source.droppableId.replace('_', ' ').toUpperCase();
+    const toStage = destination.droppableId.replace('_', ' ').toUpperCase();
+    
+    const stageEmoji = {
+      'LEAD': '🎯',
+      'DESIGN': '🎨', 
+      'DEVELOPMENT': '🛠️',
+      'REVIEW': '👀',
+      'LIVE': '🚀',
+      'CLOSED': '✅'
+    };
+
+    sendTelegramNotification(
+      `📊 PROJECT STAGE CHANGE\n\n` +
+      `${stageEmoji[fromStage as keyof typeof stageEmoji] || '📋'} ${fromStage} → ${stageEmoji[toStage as keyof typeof stageEmoji] || '📋'} ${toStage}\n\n` +
+      `Client: ${movingProject.client}\n` +
+      `Type: ${movingProject.websiteType}\n` +
+      `Budget: ${movingProject.budget || 'TBD'}`
+    );
   };
 
   const handleAddProject = (columnId: string) => {
@@ -286,14 +352,50 @@ export default function PipelinePage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
+    const projectToDelete = projects.find(p => p._id === projectId);
+    if (!projectToDelete) return;
+    
     if (!confirm('Delete this project?')) return;
+    
     setProjects(prev => prev.filter(p => p._id !== projectId));
+    
+    // Send deletion notification
+    sendTelegramNotification(
+      `🗑️ PROJECT DELETED\n\n` +
+      `Client: ${projectToDelete.client}\n` +
+      `Type: ${projectToDelete.websiteType}\n` +
+      `Stage: ${projectToDelete.stage}\n` +
+      `Budget: ${projectToDelete.budget || 'TBD'}`
+    );
+  };
+
+  // Telegram notification function
+  const sendTelegramNotification = async (message: string) => {
+    try {
+      // Send notification to Telegram
+      await fetch('/api/telegram-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+    } catch (error) {
+      console.log('Telegram notification failed:', error);
+    }
   };
 
   const handleSaveProject = async (projectData: any) => {
     if (projectData._delete && editingProject) {
       // Delete project
       setProjects(prev => prev.filter(p => p._id !== editingProject._id));
+      
+      // Send deletion notification
+      sendTelegramNotification(
+        `🗑️ PROJECT DELETED\n\n` +
+        `Client: ${editingProject.client}\n` +
+        `Type: ${editingProject.websiteType}\n` +
+        `Stage: ${editingProject.stage}`
+      );
+      
       setIsModalOpen(false);
       setEditingProject(null);
       return;
@@ -306,6 +408,16 @@ export default function PipelinePage() {
           ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
           : p
       ));
+      
+      // Send update notification
+      sendTelegramNotification(
+        `📝 PROJECT UPDATED\n\n` +
+        `Client: ${projectData.client}\n` +
+        `Type: ${projectData.websiteType}\n` +
+        `Budget: ${projectData.budget || 'TBD'}\n` +
+        `Assignee: ${projectData.assignee === 'clifton' ? '👤 Clifton' : projectData.assignee === 'sage' ? '🌿 Sage' : 'Unassigned'}\n` +
+        `Priority: ${projectData.priority === 'high' ? '🔴 High' : projectData.priority === 'medium' ? '🟡 Medium' : '🟢 Low'}`
+      );
     } else {
       // Create new project
       const newProject: WebProject = {
@@ -318,6 +430,18 @@ export default function PipelinePage() {
         comments: [],
       };
       setProjects(prev => [...prev, newProject]);
+      
+      // Send new project notification
+      sendTelegramNotification(
+        `🎯 NEW WEB PROJECT ADDED\n\n` +
+        `Client: ${projectData.client}\n` +
+        `Type: ${projectData.websiteType}\n` +
+        `Stage: ${targetColumn}\n` +
+        `Budget: ${projectData.budget || 'TBD'}\n` +
+        `Assignee: ${projectData.assignee === 'clifton' ? '👤 Clifton' : projectData.assignee === 'sage' ? '🌿 Sage' : 'Unassigned'}\n` +
+        `Priority: ${projectData.priority === 'high' ? '🔴 High' : projectData.priority === 'medium' ? '🟡 Medium' : '🟢 Low'}\n` +
+        `Launch Date: ${projectData.launchDate || 'TBD'}`
+      );
     }
     setIsModalOpen(false);
     setEditingProject(null);
