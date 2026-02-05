@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Brain, List, GitBranch, Rocket } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const workspaces = [
-  { id: 'tasks', label: 'Tasks', icon: List, emoji: '📋', href: '/' },
-  { id: 'pipeline', label: 'Pipeline', icon: GitBranch, emoji: '🔥', href: '/pipeline' },
-  { id: 'brain', label: 'Brain', icon: Brain, emoji: '🧠', href: '/brain' },
-  { id: 'groundcontrol', label: 'GroundControl', icon: Rocket, emoji: '🚀', href: '/settings' }
+  { id: 'tasks', label: 'Tasks', emoji: '📋', href: '/' },
+  { id: 'pipeline', label: 'Pipeline', emoji: '🔥', href: '/pipeline' },
+  { id: 'brain', label: 'Brain', emoji: '🧠', href: '/brain' },
+  { id: 'groundcontrol', label: 'GroundControl', emoji: '🚀', href: '/settings' }
 ];
 
 export default function WorkspaceTabs() {

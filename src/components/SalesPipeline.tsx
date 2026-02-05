@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Phone, Mail, ExternalLink, Globe, Github, Calendar } from 'lucide-react';
 
 interface Prospect {
   id: string;
@@ -139,7 +138,7 @@ export default function SalesPipeline() {
             </p>
           </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
-            <Plus className="h-4 w-4" />
+            <span>+</span>
             New Prospect
           </button>
         </div>
@@ -191,19 +190,19 @@ export default function SalesPipeline() {
                         {prospect.phone && (
                           <a 
                             href={`tel:${prospect.phone}`}
-                            className="p-1 text-green-400 hover:text-green-300"
+                            className="p-1 text-green-400 hover:text-green-300 text-sm"
                             title="Call"
                           >
-                            <Phone className="h-3 w-3" />
+                            📞
                           </a>
                         )}
                         {prospect.email && (
                           <a 
                             href={`mailto:${prospect.email}`}
-                            className="p-1 text-blue-400 hover:text-blue-300"
+                            className="p-1 text-blue-400 hover:text-blue-300 text-sm"
                             title="Email"
                           >
-                            <Mail className="h-3 w-3" />
+                            📧
                           </a>
                         )}
                         {prospect.website && (
@@ -211,10 +210,10 @@ export default function SalesPipeline() {
                             href={prospect.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1 text-gray-400 hover:text-gray-300"
+                            className="p-1 text-gray-400 hover:text-gray-300 text-sm"
                             title="Website"
                           >
-                            <Globe className="h-3 w-3" />
+                            🌐
                           </a>
                         )}
                         {prospect.github_repo && (
@@ -222,10 +221,10 @@ export default function SalesPipeline() {
                             href={`https://github.com/${prospect.github_repo}`}
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="p-1 text-gray-400 hover:text-gray-300"
+                            className="p-1 text-gray-400 hover:text-gray-300 text-sm"
                             title="GitHub"
                           >
-                            <Github className="h-3 w-3" />
+                            💻
                           </a>
                         )}
                         {prospect.facebook_url && (
@@ -233,10 +232,10 @@ export default function SalesPipeline() {
                             href={prospect.facebook_url}
                             target="_blank"
                             rel="noopener noreferrer" 
-                            className="p-1 text-blue-500 hover:text-blue-400"
+                            className="p-1 text-blue-500 hover:text-blue-400 text-sm"
                             title="Facebook"
                           >
-                            <ExternalLink className="h-3 w-3" />
+                            📘
                           </a>
                         )}
                       </div>
@@ -253,7 +252,7 @@ export default function SalesPipeline() {
                       {/* Last Contacted */}
                       {prospect.last_contacted && (
                         <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Calendar className="h-3 w-3" />
+                          <span>📅</span>
                           <span>{getDaysAgo(prospect.last_contacted)} days ago</span>
                         </div>
                       )}

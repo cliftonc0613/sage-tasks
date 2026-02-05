@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings, Users, Database, Bell, Shield } from 'lucide-react';
+// Using emoji icons instead of lucide-react for build compatibility
 
 export default function SettingsPage() {
   return (
@@ -20,7 +20,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-[#18181b] border border-gray-800 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-4">
-                <Users className="h-6 w-6 text-blue-400" />
+                <span className="text-2xl">👥</span>
                 <h3 className="font-semibold text-gray-100">Team Management</h3>
               </div>
               <p className="text-gray-400 text-sm">Manage users, roles, and permissions</p>
@@ -28,7 +28,7 @@ export default function SettingsPage() {
 
             <div className="bg-[#18181b] border border-gray-800 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-4">
-                <Database className="h-6 w-6 text-green-400" />
+                <span className="text-2xl">💾</span>
                 <h3 className="font-semibold text-gray-100">Data & Backup</h3>
               </div>
               <p className="text-gray-400 text-sm">Database management and backups</p>
@@ -36,7 +36,7 @@ export default function SettingsPage() {
 
             <div className="bg-[#18181b] border border-gray-800 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-4">
-                <Bell className="h-6 w-6 text-yellow-400" />
+                <span className="text-2xl">🔔</span>
                 <h3 className="font-semibold text-gray-100">Notifications</h3>
               </div>
               <p className="text-gray-400 text-sm">Configure alerts and notifications</p>
