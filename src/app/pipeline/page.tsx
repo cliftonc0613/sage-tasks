@@ -1156,15 +1156,13 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
               >
                 {project ? 'Close' : 'Cancel'}
               </button>
-              {!project && (
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={!formData.client.trim() || !formData.websiteType.trim()}
-                >
-                  Create Project
-                </button>
-              )}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!formData.client.trim() || !formData.websiteType.trim()}
+              >
+                {project ? 'Update Project' : 'Create Project'}
+              </button>
             </div>
           </div>
         </form>
