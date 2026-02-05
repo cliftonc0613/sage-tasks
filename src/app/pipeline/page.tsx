@@ -77,126 +77,6 @@ const columns = [
 ] as const;
 
 // Using Convex for real-time data - sample projects moved to database
-  {
-    _id: '1',
-    client: 'Henderson Plumbing Services',
-    websiteType: 'Business Website',
-    contactName: 'Mike Henderson',
-    phone: '+1-555-0123',
-    email: 'mike@hendersonplumbing.com',
-    website: 'https://cliftonc0613.github.io/henderson-plumbing/',
-    stage: 'closed',
-    budget: '$2,500',
-    technology: 'HTML/CSS/JS',
-    launchDate: '2024-01-15',
-    notes: 'Professional plumbing website with service pages and contact forms',
-    priority: 'high',
-    order: 1,
-    createdAt: '2024-01-01T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [
-      { id: '1', title: 'Design mockups', completed: true },
-      { id: '2', title: 'HTML structure', completed: true },
-      { id: '3', title: 'CSS styling', completed: true },
-      { id: '4', title: 'JavaScript functionality', completed: true },
-      { id: '5', title: 'Mobile optimization', completed: true }
-    ],
-    comments: []
-  },
-  {
-    _id: '2',
-    client: 'Kicking Tree Lawn Care',
-    websiteType: 'Service Business Site',
-    contactName: 'John Tree', 
-    phone: '+1-555-0456',
-    email: 'john@kickingtreelawncare.com',
-    website: 'https://kicking-tree-lawn-care.vercel.app/',
-    stage: 'closed',
-    budget: '$3,000',
-    technology: 'HTML/CSS/JS + StoryBrand',
-    launchDate: '2024-02-01',
-    notes: 'StoryBrand framework implementation with conversion optimization',
-    priority: 'high',
-    order: 2,
-    createdAt: '2024-01-15T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [
-      { id: '1', title: 'StoryBrand interview', completed: true },
-      { id: '2', title: 'Wireframe creation', completed: true },
-      { id: '3', title: 'Design implementation', completed: true },
-      { id: '4', title: 'Content integration', completed: true },
-      { id: '5', title: 'Conversion optimization', completed: true }
-    ],
-    comments: []
-  },
-  {
-    _id: '3',
-    client: 'New Heights Tree Service',
-    websiteType: 'Tree Service Website',
-    contactName: 'Sarah Heights',
-    phone: '+1-555-0789',
-    email: 'sarah@newheightstree.com',
-    stage: 'development',
-    budget: '$2,800',
-    technology: 'HTML/CSS/JS',
-    launchDate: '2024-02-15',
-    notes: 'Tree removal and trimming service website with before/after gallery',
-    priority: 'medium',
-    order: 1,
-    createdAt: '2024-01-20T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [
-      { id: '1', title: 'Design approval', completed: true },
-      { id: '2', title: 'Homepage build', completed: true },
-      { id: '3', title: 'Service pages', completed: false },
-      { id: '4', title: 'Gallery integration', completed: false },
-      { id: '5', title: 'Contact forms', completed: false }
-    ],
-    comments: []
-  },
-  {
-    _id: '4',
-    client: 'Blue Ridge Painting Co',
-    websiteType: 'Contractor Website',
-    contactName: 'Tom Blue',
-    phone: '+1-555-0321',
-    email: 'tom@blueridgepainting.com',
-    stage: 'design',
-    budget: '$2,200',
-    technology: 'HTML/CSS/JS',
-    launchDate: '2024-02-28',
-    notes: 'Interior and exterior painting contractor site with project portfolio',
-    priority: 'medium',
-    order: 1,
-    createdAt: '2024-02-01T00:00:00Z',
-    assignee: 'sage',
-    subtasks: [
-      { id: '1', title: 'Client consultation', completed: true },
-      { id: '2', title: 'Design concepts', completed: false },
-      { id: '3', title: 'Color scheme selection', completed: false }
-    ],
-    comments: []
-  },
-  {
-    _id: '5',
-    client: 'Sunshine Roofing LLC',
-    websiteType: 'Roofing Business Site',
-    contactName: 'Dave Sunshine',
-    phone: '+1-555-0555',
-    email: 'dave@sunshineroofing.com',
-    stage: 'lead',
-    budget: '$3,500',
-    technology: 'TBD',
-    launchDate: '2024-03-15',
-    notes: 'Premium roofing contractor needs modern website with quote calculator',
-    priority: 'high',
-    order: 1,
-    createdAt: '2024-02-04T00:00:00Z',
-    assignee: 'unassigned',
-    subtasks: [],
-    comments: []
-  }
-];
 
 export default function PipelinePage() {
   const projects = useQuery(api.projects.list);
@@ -310,6 +190,7 @@ export default function PipelinePage() {
   };
 
   const handleExport = () => {
+    if (!projects) return;
     exportToCSV(projects);
   };
 
