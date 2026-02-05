@@ -156,6 +156,11 @@ export default function PipelinePage() {
   const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
   const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
   
+  // Project template queries
+  const projectTemplates = useQuery(api.projectTemplates.list);
+  const createProjectFromTemplate = useMutation(api.projectTemplates.createProjectFromTemplate);
+  const seedWebDevTemplates = useMutation(api.projectTemplates.seedWebDevTemplates);
+  
   // Fallback to local state if projects table doesn't exist yet
   const [localProjects, setLocalProjects] = useState<WebProject[]>(sampleProjects);
   const projectsData = projects || localProjects;
@@ -431,7 +436,7 @@ export default function PipelinePage() {
           });
         } catch (error) {
           console.error('Error updating project:', error);
-          alert('Error updating project: ' + error.message);
+          alert('Error updating project: ' + (error instanceof Error ? error.message : String(error)));
           return;
         }
       } else {
@@ -466,7 +471,7 @@ export default function PipelinePage() {
           });
         } catch (error) {
           console.error('Error creating project:', error);
-          alert('Error creating project: ' + error.message);
+          alert('Error creating project: ' + (error instanceof Error ? error.message : String(error)));
           return;
         }
       } else {
@@ -608,6 +613,24 @@ export default function PipelinePage() {
                 <option value="clifton">👤 Clifton</option>
                 <option value="sage">🌿 Sage</option>
               </select>
+
+              {/* Seed Templates Button - only show if no templates exist */}
+              {(!projectTemplates || projectTemplates.length === 0) && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const result = await seedWebDevTemplates();
+                      console.log('Templates seeded:', result);
+                    } catch (error) {
+                      console.error('Error seeding templates:', error);
+                    }
+                  }}
+                  className="btn btn-secondary"
+                  title="Initialize web development project templates"
+                >
+                  🎨 Setup Templates
+                </button>
+              )}
 
               <button
                 onClick={() => handleAddProject('lead')}
@@ -761,11 +784,13 @@ export default function PipelinePage() {
           isOpen={isModalOpen}
           project={editingProject}
           targetStage={targetColumn}
+          templates={projectTemplates || []}
           onClose={() => {
             setIsModalOpen(false);
             setEditingProject(null);
           }}
           onSave={handleSaveProject}
+          onCreateFromTemplate={createProjectFromTemplate}
         />
       </div>
       <BottomNav />
@@ -817,17 +842,23 @@ function renderCommentContent(content: string): React.ReactNode {
 }
 
 // Web Project Modal Component
-function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
+function WebProjectModal({ isOpen, project, targetStage, templates, onClose, onSave, onCreateFromTemplate }: {
   isOpen: boolean;
   project: WebProject | null;
   targetStage: string;
+  templates: any[];
   onClose: () => void;
   onSave: (data: any) => void;
+  onCreateFromTemplate?: (args: any) => Promise<any>;
 }) {
   const [activeTab, setActiveTab] = useState('details');
   const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean }[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
   const [comments, setComments] = useState<{ id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string; mentions?: string[] }[]>([]);
+  
+  // Template selection state
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [showTemplateFields, setShowTemplateFields] = useState(false);
   const [newComment, setNewComment] = useState('');
   
   // Time tracking state
@@ -882,6 +913,10 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
       setManualTimeMinutes('');
       setManualTimeNotes('');
       setTimerNotes('');
+      
+      // Reset template selection
+      setSelectedTemplate('');
+      setShowTemplateFields(false);
     }
   }, [isOpen, project]);
 
@@ -1007,6 +1042,77 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
     }
   };
 
+  // Template handling functions
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    if (!templateId) {
+      setShowTemplateFields(false);
+      return;
+    }
+    
+    const template = templates.find(t => t._id === templateId);
+    if (template) {
+      const metadata = template.projectMetadata || {};
+      
+      // Populate form with template data
+      setFormData(prev => ({
+        ...prev,
+        websiteType: metadata.websiteType || template.name,
+        technology: metadata.defaultTechnology || '',
+        budget: metadata.defaultBudget || '',
+        notes: template.description,
+        priority: template.defaultPriority || 'medium',
+        timeEstimate: metadata.estimatedHours || undefined,
+      }));
+
+      // Populate subtasks from template
+      if (template.subtasksEnhanced && template.subtasksEnhanced.length > 0) {
+        const templateSubtasks = template.subtasksEnhanced.map((sub: any) => ({
+          id: crypto.randomUUID(),
+          title: sub.title,
+          completed: false,
+        }));
+        setSubtasks(templateSubtasks);
+      } else if (template.subtasks && template.subtasks.length > 0) {
+        const templateSubtasks = template.subtasks.map((title: string) => ({
+          id: crypto.randomUUID(),
+          title,
+          completed: false,
+        }));
+        setSubtasks(templateSubtasks);
+      }
+
+      setShowTemplateFields(true);
+    }
+  };
+
+  const handleUseTemplate = async () => {
+    if (!selectedTemplate || !onCreateFromTemplate) return;
+    
+    try {
+      await onCreateFromTemplate({
+        templateId: selectedTemplate,
+        client: formData.client,
+        contactName: formData.contactName,
+        phone: formData.phone,
+        email: formData.email,
+        website: formData.website,
+        stage: targetStage,
+        assignee: formData.assignee,
+        customBudget: formData.budget,
+        customTechnology: formData.technology,
+        launchDate: formData.launchDate,
+        notes: formData.notes,
+      });
+      
+      // Close modal and reset
+      onClose();
+    } catch (error) {
+      console.error('Error creating project from template:', error);
+      alert('Error creating project from template. Please try again.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.client.trim() || !formData.websiteType.trim()) return;
@@ -1104,6 +1210,156 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
             {/* Details Tab */}
             {activeTab === 'details' && (
               <>
+                {/* Template Selection - only for new projects */}
+                {!project && (
+                  <div className="template-selection-section">
+                    <div className="form-group">
+                      <label className="form-label">
+                        🎨 Project Template (Optional)
+                        <span style={{ fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                          Choose a template to pre-fill project details and tasks
+                        </span>
+                      </label>
+                      <select
+                        value={selectedTemplate}
+                        onChange={(e) => handleTemplateSelect(e.target.value)}
+                        className="input"
+                      >
+                        <option value="">Select a template...</option>
+                        <optgroup label="🏢 Business Websites">
+                          {templates.filter(t => t.projectMetadata?.projectCategory === 'business').map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="🛒 E-commerce">
+                          {templates.filter(t => t.projectMetadata?.projectCategory === 'ecommerce').map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="📄 Marketing & Landing">
+                          {templates.filter(t => t.projectMetadata?.projectCategory === 'marketing').map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="📝 CMS & WordPress">
+                          {templates.filter(t => t.projectMetadata?.projectCategory === 'cms').map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="⚡ Web Applications">
+                          {templates.filter(t => ['webapp', 'custom'].includes(t.projectMetadata?.projectCategory)).map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="🎨 Portfolio & Creative">
+                          {templates.filter(t => t.projectMetadata?.projectCategory === 'portfolio').map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="📋 Other">
+                          {templates.filter(t => !t.projectMetadata?.projectCategory || 
+                            !['business', 'ecommerce', 'marketing', 'cms', 'webapp', 'custom', 'portfolio'].includes(t.projectMetadata?.projectCategory)).map(template => (
+                            <option key={template._id} value={template._id}>
+                              {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    
+                    {selectedTemplate && (
+                      <div className="template-preview">
+                        {(() => {
+                          const template = templates.find(t => t._id === selectedTemplate);
+                          if (!template) return null;
+                          const metadata = template.projectMetadata || {};
+                          
+                          return (
+                            <div className="template-preview-content">
+                              <div className="template-info">
+                                <h4 className="template-name">{template.name}</h4>
+                                <p className="template-description">{template.description}</p>
+                                <div className="template-metadata">
+                                  {metadata.defaultBudget && (
+                                    <span className="template-tag">💰 {metadata.defaultBudget}</span>
+                                  )}
+                                  {metadata.estimatedHours && (
+                                    <span className="template-tag">⏱️ {metadata.estimatedHours}h</span>
+                                  )}
+                                  {template.totalEstimatedDays && (
+                                    <span className="template-tag">📅 {template.totalEstimatedDays} days</span>
+                                  )}
+                                  {metadata.defaultTechnology && (
+                                    <span className="template-tag">🔧 {metadata.defaultTechnology}</span>
+                                  )}
+                                </div>
+                                <div className="template-subtasks-preview">
+                                  <strong>Includes {template.subtasksEnhanced?.length || template.subtasks?.length || 0} tasks:</strong>
+                                  <ul>
+                                    {(template.subtasksEnhanced || template.subtasks)?.slice(0, 4).map((subtask: any, index: number) => (
+                                      <li key={index}>
+                                        {typeof subtask === 'string' ? subtask : subtask.title}
+                                        {subtask.phase && <span className="task-phase"> • {subtask.phase}</span>}
+                                      </li>
+                                    ))}
+                                    {(template.subtasksEnhanced?.length || template.subtasks?.length || 0) > 4 && (
+                                      <li>...and {(template.subtasksEnhanced?.length || template.subtasks?.length || 0) - 4} more</li>
+                                    )}
+                                  </ul>
+                                </div>
+                              </div>
+                              <div className="template-actions">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTemplate('')}
+                                  className="btn btn-ghost btn-sm"
+                                >
+                                  Clear
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowTemplateFields(true)}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Customize & Create
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleUseTemplate}
+                                  className="btn btn-primary btn-sm"
+                                  disabled={!formData.client.trim()}
+                                >
+                                  Create with Template
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                    
+                    {(selectedTemplate && showTemplateFields) && (
+                      <div className="template-notice">
+                        <span className="template-notice-text">
+                          ✨ Template applied! Review and customize the details below.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="form-group">
                   <label className="form-label">Client Name *</label>
                   <input
@@ -1692,6 +1948,118 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
           </div>
         </form>
       </div>
+      
+      {/* Template Selection Styles */}
+      <style jsx>{`
+        .template-selection-section {
+          margin-bottom: 24px;
+          padding: 16px;
+          background: var(--background-subtle);
+          border-radius: 8px;
+          border: 1px solid var(--border);
+        }
+        
+        .template-preview {
+          margin-top: 16px;
+          padding: 16px;
+          background: var(--background);
+          border-radius: 8px;
+          border: 1px solid var(--border);
+        }
+        
+        .template-preview-content {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        .template-info {
+          flex: 1;
+        }
+        
+        .template-name {
+          font-size: 16px;
+          font-weight: 600;
+          margin: 0 0 8px 0;
+          color: var(--text-primary);
+        }
+        
+        .template-description {
+          font-size: 14px;
+          color: var(--text-muted);
+          margin: 0 0 12px 0;
+          line-height: 1.4;
+        }
+        
+        .template-metadata {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        
+        .template-tag {
+          background: var(--status-review);
+          color: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        
+        .template-subtasks-preview {
+          font-size: 14px;
+        }
+        
+        .template-subtasks-preview ul {
+          margin: 8px 0 0 0;
+          padding-left: 16px;
+        }
+        
+        .template-subtasks-preview li {
+          margin-bottom: 4px;
+          font-size: 13px;
+        }
+        
+        .task-phase {
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        
+        .template-actions {
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+          align-items: center;
+          padding-top: 8px;
+          border-top: 1px solid var(--border);
+        }
+        
+        .template-notice {
+          margin-top: 16px;
+          padding: 12px;
+          background: #e3f2fd;
+          border: 1px solid #1976d2;
+          border-radius: 6px;
+          color: #1976d2;
+          font-size: 14px;
+        }
+        
+        .template-notice-text {
+          font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+          .template-actions {
+            flex-direction: column;
+            gap: 8px;
+          }
+          
+          .template-actions button {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 }
