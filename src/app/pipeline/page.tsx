@@ -567,7 +567,7 @@ export default function PipelinePage() {
                       try {
                         // Create project directly from template
                         await createProjectFromTemplate({
-                          templateId: e.target.value,
+                          templateId: e.target.value as Id<"templates">,
                           client: "New Client", // Will need to edit after creation
                           stage: "lead"
                         });
