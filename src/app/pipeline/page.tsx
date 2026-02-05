@@ -761,16 +761,119 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
                       onChange={(e) => setFormData({...formData, websiteType: e.target.value})}
                       className="input"
                     >
-                      <option value="">Select type...</option>
-                      <option value="Business Website">Business Website</option>
-                      <option value="E-commerce Store">E-commerce Store</option>
-                      <option value="Portfolio Site">Portfolio Site</option>
-                      <option value="Blog/News Site">Blog/News Site</option>
-                      <option value="Landing Page">Landing Page</option>
-                      <option value="Service Business">Service Business</option>
-                      <option value="Contractor Website">Contractor Website</option>
-                      <option value="Restaurant/Food">Restaurant/Food</option>
-                      <option value="Real Estate">Real Estate</option>
+                      <option value="">Select service type...</option>
+                      
+                      {/* Home Services */}
+                      <optgroup label="🏠 Home Services">
+                        <option value="Plumbing Services">Plumbing Services</option>
+                        <option value="HVAC Services">HVAC Services</option>
+                        <option value="Electrical Services">Electrical Services</option>
+                        <option value="Roofing Services">Roofing Services</option>
+                        <option value="Painting Services">Painting Services</option>
+                        <option value="Flooring Services">Flooring Services</option>
+                        <option value="Kitchen & Bath Remodeling">Kitchen & Bath Remodeling</option>
+                        <option value="General Contractor">General Contractor</option>
+                        <option value="Handyman Services">Handyman Services</option>
+                        <option value="Windows & Doors">Windows & Doors</option>
+                        <option value="Insulation Services">Insulation Services</option>
+                        <option value="Foundation Repair">Foundation Repair</option>
+                      </optgroup>
+
+                      {/* Outdoor Services */}
+                      <optgroup label="🌿 Outdoor Services">
+                        <option value="Landscaping Services">Landscaping Services</option>
+                        <option value="Lawn Care Services">Lawn Care Services</option>
+                        <option value="Tree Services">Tree Services</option>
+                        <option value="Irrigation Services">Irrigation Services</option>
+                        <option value="Hardscaping">Hardscaping</option>
+                        <option value="Pool Services">Pool Services</option>
+                        <option value="Fence Installation">Fence Installation</option>
+                        <option value="Deck & Patio Services">Deck & Patio Services</option>
+                        <option value="Snow Removal">Snow Removal</option>
+                        <option value="Outdoor Lighting">Outdoor Lighting</option>
+                      </optgroup>
+
+                      {/* Cleaning Services */}
+                      <optgroup label="🧹 Cleaning Services">
+                        <option value="House Cleaning">House Cleaning</option>
+                        <option value="Commercial Cleaning">Commercial Cleaning</option>
+                        <option value="Carpet Cleaning">Carpet Cleaning</option>
+                        <option value="Window Cleaning">Window Cleaning</option>
+                        <option value="Pressure Washing">Pressure Washing</option>
+                        <option value="Junk Removal">Junk Removal</option>
+                        <option value="Mold Remediation">Mold Remediation</option>
+                        <option value="Restoration Services">Restoration Services</option>
+                      </optgroup>
+
+                      {/* Auto Services */}
+                      <optgroup label="🚗 Auto Services">
+                        <option value="Auto Repair">Auto Repair</option>
+                        <option value="Auto Detailing">Auto Detailing</option>
+                        <option value="Oil Change">Oil Change</option>
+                        <option value="Tire Services">Tire Services</option>
+                        <option value="Collision Repair">Collision Repair</option>
+                        <option value="Mobile Mechanic">Mobile Mechanic</option>
+                        <option value="Towing Services">Towing Services</option>
+                      </optgroup>
+
+                      {/* Professional Services */}
+                      <optgroup label="💼 Professional Services">
+                        <option value="Law Firm">Law Firm</option>
+                        <option value="Accounting Services">Accounting Services</option>
+                        <option value="Real Estate Agent">Real Estate Agent</option>
+                        <option value="Insurance Agency">Insurance Agency</option>
+                        <option value="Financial Advisor">Financial Advisor</option>
+                        <option value="Consulting Services">Consulting Services</option>
+                        <option value="Marketing Agency">Marketing Agency</option>
+                        <option value="IT Services">IT Services</option>
+                      </optgroup>
+
+                      {/* Health & Wellness */}
+                      <optgroup label="🏥 Health & Wellness">
+                        <option value="Dental Practice">Dental Practice</option>
+                        <option value="Medical Practice">Medical Practice</option>
+                        <option value="Chiropractic">Chiropractic</option>
+                        <option value="Physical Therapy">Physical Therapy</option>
+                        <option value="Massage Therapy">Massage Therapy</option>
+                        <option value="Veterinary Services">Veterinary Services</option>
+                        <option value="Mental Health Services">Mental Health Services</option>
+                        <option value="Fitness Training">Fitness Training</option>
+                      </optgroup>
+
+                      {/* Personal Services */}
+                      <optgroup label="✂️ Personal Services">
+                        <option value="Hair Salon">Hair Salon</option>
+                        <option value="Barber Shop">Barber Shop</option>
+                        <option value="Nail Salon">Nail Salon</option>
+                        <option value="Spa Services">Spa Services</option>
+                        <option value="Photography">Photography</option>
+                        <option value="Event Planning">Event Planning</option>
+                        <option value="Catering Services">Catering Services</option>
+                        <option value="Pet Services">Pet Services</option>
+                      </optgroup>
+
+                      {/* Specialty Services */}
+                      <optgroup label="🔧 Specialty Services">
+                        <option value="Locksmith">Locksmith</option>
+                        <option value="Security Services">Security Services</option>
+                        <option value="Appliance Repair">Appliance Repair</option>
+                        <option value="Pest Control">Pest Control</option>
+                        <option value="Moving Services">Moving Services</option>
+                        <option value="Storage Services">Storage Services</option>
+                        <option value="Funeral Services">Funeral Services</option>
+                        <option value="Wedding Services">Wedding Services</option>
+                      </optgroup>
+
+                      {/* Other */}
+                      <optgroup label="📄 Other Types">
+                        <option value="E-commerce Store">E-commerce Store</option>
+                        <option value="Restaurant/Food">Restaurant/Food</option>
+                        <option value="Portfolio Site">Portfolio Site</option>
+                        <option value="Blog/News Site">Blog/News Site</option>
+                        <option value="Landing Page">Landing Page</option>
+                        <option value="Non-Profit">Non-Profit</option>
+                        <option value="Other Service Business">Other Service Business</option>
+                      </optgroup>
                     </select>
                   </div>
                   
