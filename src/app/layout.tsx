@@ -2,17 +2,18 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import WorkspaceTabs from "@/components/WorkspaceTabs";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Sage Tasks - Project Management",
-  description: "Kanban board for Clifton & Sage to manage tasks together",
+  title: "GroundControl - Project Management",
+  description: "Task management and sales pipeline for Clifton & Sage",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Sage Tasks",
+    title: "GroundControl",
   },
   formatDetection: {
     telephone: false,
@@ -42,7 +43,12 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} bg-[#0f0f12] text-gray-100 antialiased`}>
         <ConvexClientProvider>
-          {children}
+          <div className="h-screen flex flex-col">
+            <WorkspaceTabs />
+            <div className="flex-1 overflow-hidden">
+              {children}
+            </div>
+          </div>
         </ConvexClientProvider>
       </body>
     </html>
