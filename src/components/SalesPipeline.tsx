@@ -2,10 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { useQuery, useMutation } from 'convex/react';
 import { useRouter } from 'next/navigation';
-import { api } from '../../convex/_generated/api';
-import { Id } from '../../convex/_generated/dataModel';
 import { PipelineColumn } from './PipelineColumn';
 import { ProspectModal } from './ProspectModal';
 import { Sidebar } from './Sidebar';
@@ -47,7 +44,7 @@ function exportToCSV(prospects: Prospect[]) {
 }
 
 type Prospect = {
-  _id: Id<"prospects">;
+  _id: string;
   title: string;
   company: string;
   contactName?: string;
@@ -79,14 +76,99 @@ const columns = [
   { id: 'closed_lost', title: 'Closed Lost', color: 'bg-red-600' }
 ] as const;
 
-export function SalesPipeline() {
-  const prospects = useQuery(api.prospects.list);
-  const stats = useQuery(api.prospects.stats);
-  const createProspect = useMutation(api.prospects.create);
-  const updateProspect = useMutation(api.prospects.update);
-  const moveProspect = useMutation(api.prospects.move);
-  const deleteProspect = useMutation(api.prospects.remove);
+// Sample data - temporary until Convex API is configured
+const sampleProspects: Prospect[] = [
+  {
+    _id: '1',
+    title: 'Henderson Plumbing Website',
+    company: 'Henderson Plumbing Services',
+    contactName: 'Mike Henderson',
+    phone: '+1-555-0123',
+    email: 'mike@hendersonplumbing.com',
+    website: 'https://henderson-plumbing.com',
+    facebookUrl: 'https://facebook.com/hendersonplumbing',
+    githubRepo: 'cliftonc0613/henderson-plumbing',
+    industry: 'plumbing',
+    location: 'Greenville, SC',
+    lastContacted: '2024-02-01',
+    notes: 'Completed website, very satisfied customer',
+    stage: 'closed_won',
+    urgency: 'fresh',
+    order: 1,
+    createdAt: '2024-01-15T00:00:00Z',
+  },
+  {
+    _id: '2', 
+    title: 'Kicking Tree Lawn Care',
+    company: 'Kicking Tree LLC',
+    contactName: 'John Tree',
+    phone: '+1-555-0456',
+    email: 'john@kickingtreelawncare.com',
+    website: 'https://kicking-tree-lawn-care.vercel.app',
+    facebookUrl: 'https://facebook.com/kickingtree',
+    industry: 'landscaping',
+    location: 'Greenville, SC', 
+    lastContacted: '2024-02-03',
+    notes: 'StoryBrand implementation completed',
+    stage: 'closed_won',
+    urgency: 'fresh',
+    order: 2,
+    createdAt: '2024-02-01T00:00:00Z',
+  },
+  {
+    _id: '3',
+    title: 'New Heights Tree Service',
+    company: 'New Heights Tree Service',
+    contactName: 'Sarah Heights',
+    phone: '+1-555-0789',
+    email: 'sarah@newheightstree.com',
+    industry: 'tree_services',
+    location: 'Anderson, SC',
+    lastContacted: '2024-01-28',
+    notes: 'In development - 75% complete',
+    stage: 'negotiating',
+    urgency: 'warm',
+    order: 1,
+    createdAt: '2024-02-03T00:00:00Z',
+  },
+  {
+    _id: '4',
+    title: 'Blue Ridge Painting',
+    company: 'Blue Ridge Painting Co',
+    contactName: 'Tom Blue',
+    phone: '+1-555-0321',
+    email: 'tom@blueridgepainting.com',
+    facebookUrl: 'https://facebook.com/blueridgepainting',
+    industry: 'painting',
+    location: 'Spartanburg, SC',
+    lastContacted: '2024-01-20',
+    notes: 'Interested in website package',
+    stage: 'follow_up',
+    urgency: 'cold',
+    order: 1,
+    createdAt: '2024-01-25T00:00:00Z',
+  },
+  {
+    _id: '5',
+    title: 'Sunshine Roofing',
+    company: 'Sunshine Roofing LLC',
+    contactName: 'Dave Sunshine',
+    phone: '+1-555-0555',
+    email: 'dave@sunshineroofing.com',
+    website: 'https://sunshineroofing.com',
+    industry: 'roofing',
+    location: 'Spartanburg, SC',
+    lastContacted: '2024-02-04',
+    notes: 'Looking for website redesign',
+    stage: 'lead',
+    urgency: 'warm',
+    order: 1,
+    createdAt: '2024-02-04T00:00:00Z',
+  }
+];
 
+export default function SalesPipeline() {
+  const [prospects, setProspects] = useState<Prospect[]>(sampleProspects);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('lead');
@@ -115,29 +197,22 @@ export function SalesPipeline() {
   }, []);
 
   const handleBulkMove = async (newStage: Prospect['stage']) => {
-    // Note: This would need a bulk move operation in the backend
-    for (const id of selectedProspects) {
-      await moveProspect({ 
-        id: id as Id<"prospects">, 
-        newStage,
-        newOrder: 0 // Would need to calculate proper order
-      });
-    }
+    setProspects(prev => prev.map(prospect => 
+      selectedProspects.has(prospect._id) 
+        ? { ...prospect, stage: newStage, updatedAt: new Date().toISOString() }
+        : prospect
+    ));
     clearSelection();
   };
 
   const handleBulkDelete = async () => {
     if (!confirm(`Delete ${selectedProspects.size} prospects?`)) return;
-    for (const id of selectedProspects) {
-      await deleteProspect({ id: id as Id<"prospects"> });
-    }
+    setProspects(prev => prev.filter(prospect => !selectedProspects.has(prospect._id)));
     clearSelection();
   };
 
   const handleExport = () => {
-    if (prospects) {
-      exportToCSV(prospects);
-    }
+    exportToCSV(prospects);
   };
 
   const handleDragEnd = async (result: DropResult) => {
@@ -149,11 +224,16 @@ export function SalesPipeline() {
       destination.index === source.index
     ) return;
 
-    await moveProspect({
-      id: draggableId as Id<"prospects">,
-      newStage: destination.droppableId as Prospect['stage'],
-      newOrder: destination.index,
-    });
+    setProspects(prev => prev.map(prospect => 
+      prospect._id === draggableId 
+        ? { 
+            ...prospect, 
+            stage: destination.droppableId as Prospect['stage'],
+            order: destination.index,
+            updatedAt: new Date().toISOString()
+          }
+        : prospect
+    ));
   };
 
   const handleAddProspect = (columnId: string) => {
@@ -169,7 +249,7 @@ export function SalesPipeline() {
 
   const handleDeleteProspect = async (prospectId: string) => {
     if (!confirm('Delete this prospect?')) return;
-    await deleteProspect({ id: prospectId as Id<"prospects"> });
+    setProspects(prev => prev.filter(p => p._id !== prospectId));
   };
 
   const handleSaveProspect = async (prospectData: {
@@ -189,20 +269,26 @@ export function SalesPipeline() {
     urgency: 'fresh' | 'warm' | 'cold' | 'no_contact';
   }) => {
     if (editingProspect) {
-      await updateProspect({
-        id: editingProspect._id,
-        ...prospectData,
-      });
+      // Update existing prospect
+      setProspects(prev => prev.map(p => 
+        p._id === editingProspect._id 
+          ? { ...p, ...prospectData, updatedAt: new Date().toISOString() }
+          : p
+      ));
     } else {
-      await createProspect({
-        stage: targetColumn as Prospect['stage'],
+      // Create new prospect
+      const newProspect: Prospect = {
+        _id: Date.now().toString(),
         ...prospectData,
-      });
+        stage: targetColumn as Prospect['stage'],
+        order: prospects.filter(p => p.stage === targetColumn).length,
+        createdAt: new Date().toISOString(),
+      };
+      setProspects(prev => [...prev, newProspect]);
     }
   };
 
   const getProspectsForColumn = (columnId: string) => {
-    if (!prospects) return [];
     return prospects
       .filter((prospect) => prospect.stage === columnId)
       .filter((prospect) => {
@@ -223,26 +309,12 @@ export function SalesPipeline() {
       .sort((a, b) => a.order - b.order);
   };
 
-  const totalProspects = prospects?.length || 0;
-  const freshCount = prospects?.filter(p => p.urgency === 'fresh').length || 0;
-  const warmCount = prospects?.filter(p => p.urgency === 'warm').length || 0;
-  const coldCount = prospects?.filter(p => p.urgency === 'cold').length || 0;
-  const wonCount = prospects?.filter(p => p.stage === 'closed_won').length || 0;
-  const lostCount = prospects?.filter(p => p.stage === 'closed_lost').length || 0;
-
-  if (prospects === undefined) {
-    return (
-      <div className="app-container">
-        <Sidebar activePage="pipeline" />
-        <div className="main-content">
-          <div className="loading">
-            <div className="loading-spinner" />
-            <span>Loading...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const totalProspects = prospects.length;
+  const freshCount = prospects.filter(p => p.urgency === 'fresh').length;
+  const warmCount = prospects.filter(p => p.urgency === 'warm').length;
+  const coldCount = prospects.filter(p => p.urgency === 'cold').length;
+  const wonCount = prospects.filter(p => p.stage === 'closed_won').length;
+  const lostCount = prospects.filter(p => p.stage === 'closed_lost').length;
 
   return (
     <div className="app-container">

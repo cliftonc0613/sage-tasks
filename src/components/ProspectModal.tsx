@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Id } from '../../convex/_generated/dataModel';
 
 interface Prospect {
-  _id: Id<"prospects">;
+  _id: string;
   title: string;
   company: string;
   contactName?: string;
