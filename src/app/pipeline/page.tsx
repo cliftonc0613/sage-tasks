@@ -76,7 +76,7 @@ const columns = [
   { id: 'closed', title: 'Closed' },
 ] as const;
 
-// Using Convex for real-time projects data
+// Using Convex for real-time data - sample projects moved to database
   {
     _id: '1',
     client: 'Henderson Plumbing Services',
