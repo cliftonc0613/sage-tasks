@@ -78,15 +78,81 @@ const columns = [
 
 // Using Convex for real-time data - sample projects moved to database
 
+// Temporary sample data until Convex projects table is deployed
+const sampleProjects: WebProject[] = [
+  {
+    _id: '1' as Id<"projects">,
+    client: 'Henderson Plumbing Services',
+    websiteType: 'Business Website',
+    contactName: 'Mike Henderson',
+    phone: '+1-555-0123',
+    email: 'mike@hendersonplumbing.com',
+    website: 'https://cliftonc0613.github.io/henderson-plumbing/',
+    stage: 'closed',
+    budget: '$2,500',
+    technology: 'HTML/CSS/JS',
+    launchDate: '2024-01-15',
+    notes: 'Professional plumbing website',
+    priority: 'high',
+    order: 1,
+    createdAt: '2024-01-01T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [],
+    comments: []
+  },
+  {
+    _id: '2' as Id<"projects">,
+    client: 'Kicking Tree Lawn Care',
+    websiteType: 'Service Business Site',
+    contactName: 'John Tree',
+    phone: '+1-555-0456',
+    email: 'john@kickingtreelawncare.com',
+    website: 'https://kicking-tree-lawn-care.vercel.app/',
+    stage: 'live',
+    budget: '$3,000',
+    technology: 'HTML/CSS/JS + StoryBrand',
+    launchDate: '2024-02-01',
+    notes: 'StoryBrand framework implementation',
+    priority: 'high',
+    order: 1,
+    createdAt: '2024-01-15T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [],
+    comments: []
+  },
+  {
+    _id: '3' as Id<"projects">,
+    client: 'New Heights Tree Service',
+    websiteType: 'Tree Service Website',
+    contactName: 'Sarah Heights',
+    phone: '+1-555-0789',
+    email: 'sarah@newheightstree.com',
+    stage: 'development',
+    budget: '$2,800',
+    technology: 'HTML/CSS/JS',
+    launchDate: '2024-02-15',
+    notes: 'Tree removal service website',
+    priority: 'medium',
+    order: 1,
+    createdAt: '2024-01-20T00:00:00Z',
+    assignee: 'clifton',
+    subtasks: [],
+    comments: []
+  }
+];
+
 export default function PipelinePage() {
-  const projects = useQuery(api.projects.list);
-  const stats = useQuery(api.projects.stats);
-  const createProject = useMutation(api.projects.create);
-  const updateProject = useMutation(api.projects.update);
-  const moveProject = useMutation(api.projects.move);
-  const deleteProject = useMutation(api.projects.remove);
-  const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
-  const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
+  // Temporarily use local state until Convex projects table is deployed
+  const [projects, setProjects] = useState<WebProject[]>(sampleProjects);
+  const stats = null;
+  
+  // Temporarily disable Convex mutations until projects table is deployed
+  const createProject = null;
+  const updateProject = null;
+  const moveProject = null;
+  const deleteProject = null;
+  const bulkUpdateProjects = null;
+  const bulkDeleteProjects = null;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
@@ -128,11 +194,12 @@ export default function PipelinePage() {
       'closed': '✅'
     };
     
-    // Use Convex mutation to update projects
-    await bulkUpdateProjects({
-      ids: Array.from(selectedProjects) as Id<"projects">[],
-      updates: { stage: newStage }
-    });
+    // Temporarily use local state instead of Convex
+    setProjects(prev => prev.map(project => 
+      selectedProjects.has(project._id) 
+        ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
+        : project
+    ));
     
     // Send bulk move notification
     sendTelegramNotification(
@@ -151,11 +218,12 @@ export default function PipelinePage() {
     const assigningProjects = projects.filter(p => selectedProjects.has(p._id));
     const assigneeLabel = assignee === 'clifton' ? '👤 Clifton' : assignee === 'sage' ? '🌿 Sage' : 'Unassigned';
     
-    // Use Convex mutation to update projects
-    await bulkUpdateProjects({
-      ids: Array.from(selectedProjects) as Id<"projects">[],
-      updates: { assignee }
-    });
+    // Temporarily use local state instead of Convex
+    setProjects(prev => prev.map(project => 
+      selectedProjects.has(project._id) 
+        ? { ...project, assignee, updatedAt: new Date().toISOString() }
+        : project
+    ));
     
     // Send bulk assign notification
     sendTelegramNotification(
@@ -174,10 +242,8 @@ export default function PipelinePage() {
     const deletingProjects = projects.filter(p => selectedProjects.has(p._id));
     if (!confirm(`Delete ${selectedProjects.size} projects?`)) return;
     
-    // Use Convex mutation to delete projects
-    await bulkDeleteProjects({
-      ids: Array.from(selectedProjects) as Id<"projects">[]
-    });
+    // Temporarily use local state instead of Convex
+    setProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
     
     // Send bulk delete notification
     sendTelegramNotification(
@@ -209,12 +275,17 @@ export default function PipelinePage() {
     const movingProject = projects.find(p => p._id === draggableId);
     if (!movingProject) return;
 
-    // Use Convex mutation to move project
-    await moveProject({
-      id: draggableId as Id<"projects">,
-      newStage: destination.droppableId as WebProject['stage'],
-      newOrder: destination.index
-    });
+    // Temporarily use local state instead of Convex
+    setProjects(prev => prev.map(project => 
+      project._id === draggableId 
+        ? { 
+            ...project, 
+            stage: destination.droppableId as WebProject['stage'],
+            order: destination.index,
+            updatedAt: new Date().toISOString()
+          }
+        : project
+    ));
 
     // Send stage movement notification
     const fromStage = source.droppableId.replace('_', ' ').toUpperCase();
@@ -257,8 +328,8 @@ export default function PipelinePage() {
     
     if (!confirm('Delete this project?')) return;
     
-    // Use Convex mutation to delete project
-    await deleteProject({ id: projectId as Id<"projects"> });
+    // Temporarily use local state instead of Convex
+    setProjects(prev => prev.filter(p => p._id !== projectId));
     
     // Send deletion notification
     sendTelegramNotification(
@@ -286,8 +357,8 @@ export default function PipelinePage() {
 
   const handleSaveProject = async (projectData: any) => {
     if (projectData._delete && editingProject) {
-      // Delete project
-      await deleteProject({ id: editingProject._id });
+      // Delete project - temporarily use local state
+      setProjects(prev => prev.filter(p => p._id !== editingProject._id));
       
       // Send deletion notification
       sendTelegramNotification(
@@ -303,11 +374,12 @@ export default function PipelinePage() {
     }
     
     if (editingProject) {
-      // Update existing project
-      await updateProject({
-        id: editingProject._id,
-        ...projectData,
-      });
+      // Update existing project - temporarily use local state
+      setProjects(prev => prev.map(p => 
+        p._id === editingProject._id 
+          ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
+          : p
+      ));
       
       // Send update notification
       sendTelegramNotification(
@@ -319,13 +391,17 @@ export default function PipelinePage() {
         `Priority: ${projectData.priority === 'high' ? '🔴 High' : projectData.priority === 'medium' ? '🟡 Medium' : '🟢 Low'}`
       );
     } else {
-      // Create new project
-      const projectId = await createProject({
+      // Create new project - temporarily use local state
+      const newProject: WebProject = {
+        _id: Date.now().toString() as Id<"projects">,
         ...projectData,
         stage: targetColumn as WebProject['stage'],
+        order: projects.filter(p => p.stage === targetColumn).length,
+        createdAt: new Date().toISOString(),
         subtasks: [],
         comments: [],
-      });
+      };
+      setProjects(prev => [...prev, newProject]);
       
       // Send new project notification
       sendTelegramNotification(
