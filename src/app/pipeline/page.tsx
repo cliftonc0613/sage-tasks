@@ -142,17 +142,28 @@ const sampleProjects: WebProject[] = [
 ];
 
 export default function PipelinePage() {
-  const projects = useQuery(api.projects.list);
-  const stats = useQuery(api.projects.stats);
-  const createProject = useMutation(api.projects.create);
-  const updateProject = useMutation(api.projects.update);
-  const moveProject = useMutation(api.projects.move);
-  const deleteProject = useMutation(api.projects.remove);
-  const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
-  const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
+  // Temporarily disable Convex for projects until table is deployed
+  // const projects = useQuery(api.projects.list);
+  // const stats = useQuery(api.projects.stats);
+  // const createProject = useMutation(api.projects.create);
+  // const updateProject = useMutation(api.projects.update);
+  // const moveProject = useMutation(api.projects.move);
+  // const deleteProject = useMutation(api.projects.remove);
+  // const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
+  // const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
   
-  // Fallback to sample data if Convex projects table doesn't exist yet
-  const projectsData = projects || sampleProjects;
+  // Use local state until projects table is deployed
+  const [localProjects, setLocalProjects] = useState<WebProject[]>(sampleProjects);
+  const projects: any = undefined;
+  const stats: any = undefined;
+  const createProject: any = undefined;
+  const updateProject: any = undefined;
+  const moveProject: any = undefined;
+  const deleteProject: any = undefined;
+  const bulkUpdateProjects: any = undefined;
+  const bulkDeleteProjects: any = undefined;
+  
+  const projectsData = localProjects;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
@@ -200,6 +211,13 @@ export default function PipelinePage() {
         ids: Array.from(selectedProjects) as Id<"projects">[],
         updates: { stage: newStage }
       });
+    } else {
+      // Use local state
+      setLocalProjects(prev => prev.map(project => 
+        selectedProjects.has(project._id) 
+          ? { ...project, stage: newStage, updatedAt: new Date().toISOString() }
+          : project
+      ));
     }
     
     // Send bulk move notification
@@ -225,6 +243,13 @@ export default function PipelinePage() {
         ids: Array.from(selectedProjects) as Id<"projects">[],
         updates: { assignee }
       });
+    } else {
+      // Use local state
+      setLocalProjects(prev => prev.map(project => 
+        selectedProjects.has(project._id) 
+          ? { ...project, assignee, updatedAt: new Date().toISOString() }
+          : project
+      ));
     }
     
     // Send bulk assign notification
@@ -249,6 +274,9 @@ export default function PipelinePage() {
       await bulkDeleteProjects({
         ids: Array.from(selectedProjects) as Id<"projects">[]
       });
+    } else {
+      // Use local state
+      setLocalProjects(prev => prev.filter(project => !selectedProjects.has(project._id)));
     }
     
     // Send bulk delete notification
@@ -288,6 +316,18 @@ export default function PipelinePage() {
         newStage: destination.droppableId as WebProject['stage'],
         newOrder: destination.index
       });
+    } else {
+      // Use local state
+      setLocalProjects(prev => prev.map(project => 
+        project._id === draggableId 
+          ? { 
+              ...project, 
+              stage: destination.droppableId as WebProject['stage'],
+              order: destination.index,
+              updatedAt: new Date().toISOString()
+            }
+          : project
+      ));
     }
 
     // Send stage movement notification
@@ -334,6 +374,9 @@ export default function PipelinePage() {
     // Use Convex mutation if available
     if (deleteProject) {
       await deleteProject({ id: projectId as Id<"projects"> });
+    } else {
+      // Use local state
+      setLocalProjects(prev => prev.filter(p => p._id !== projectId));
     }
     
     // Send deletion notification
@@ -365,6 +408,9 @@ export default function PipelinePage() {
       // Delete project - use Convex if available
       if (deleteProject) {
         await deleteProject({ id: editingProject._id });
+      } else {
+        // Use local state
+        setLocalProjects(prev => prev.filter(p => p._id !== editingProject._id));
       }
       
       // Send deletion notification
@@ -387,6 +433,13 @@ export default function PipelinePage() {
           id: editingProject._id,
           ...projectData,
         });
+      } else {
+        // Use local state
+        setLocalProjects(prev => prev.map(p => 
+          p._id === editingProject._id 
+            ? { ...p, ...projectData, updatedAt: new Date().toISOString() }
+            : p
+        ));
       }
       
       // Send update notification
@@ -407,6 +460,18 @@ export default function PipelinePage() {
           subtasks: [],
           comments: [],
         });
+      } else {
+        // Use local state
+        const newProject: WebProject = {
+          _id: Date.now().toString() as Id<"projects">,
+          ...projectData,
+          stage: targetColumn as WebProject['stage'],
+          order: projectsData.filter(p => p.stage === targetColumn).length,
+          createdAt: new Date().toISOString(),
+          subtasks: [],
+          comments: [],
+        };
+        setLocalProjects(prev => [...prev, newProject]);
       }
       
       // Send new project notification

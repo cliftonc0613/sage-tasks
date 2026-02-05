@@ -36,7 +36,8 @@ export default defineSchema({
       v.literal("in-progress"),
       v.literal("review"),
       v.literal("done"),
-      v.literal("on-hold")
+      v.literal("on-hold"),
+      v.literal("follow-up")
     ),
     project: v.optional(v.string()),
     dueDate: v.optional(v.string()),
@@ -102,6 +103,10 @@ export default defineSchema({
         changedFiles: v.optional(v.number()),
       })
     )),
+    // Prospect information (legacy field)
+    prospect: v.optional(v.object({
+      industry: v.optional(v.string()),
+    })),
   })
     .index("by_status", ["status"])
     .index("by_assignee", ["assignee"])
