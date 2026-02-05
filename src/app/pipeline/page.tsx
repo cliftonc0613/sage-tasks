@@ -424,10 +424,16 @@ export default function PipelinePage() {
     if (editingProject) {
       // Update existing project - use Convex if available
       if (updateProject) {
-        await updateProject({
-          id: editingProject._id,
-          ...projectData,
-        });
+        try {
+          await updateProject({
+            id: editingProject._id,
+            ...projectData,
+          });
+        } catch (error) {
+          console.error('Error updating project:', error);
+          alert('Error updating project: ' + error.message);
+          return;
+        }
       } else {
         // Use local state
         setLocalProjects(prev => prev.map(p => 
@@ -449,12 +455,20 @@ export default function PipelinePage() {
     } else {
       // Create new project - use Convex if available
       if (createProject) {
-        await createProject({
-          ...projectData,
-          stage: targetColumn as WebProject['stage'],
-          subtasks: [],
-          comments: [],
-        });
+        try {
+          await createProject({
+            ...projectData,
+            stage: targetColumn as WebProject['stage'],
+            subtasks: projectData.subtasks || [],
+            comments: projectData.comments || [],
+            timeEntries: projectData.timeEntries || [],
+            totalTimeSpent: projectData.totalTimeSpent || 0,
+          });
+        } catch (error) {
+          console.error('Error creating project:', error);
+          alert('Error creating project: ' + error.message);
+          return;
+        }
       } else {
         // Use local state
         const newProject: WebProject = {
@@ -463,8 +477,10 @@ export default function PipelinePage() {
           stage: targetColumn as WebProject['stage'],
           order: projectsData.filter(p => p.stage === targetColumn).length,
           createdAt: new Date().toISOString(),
-          subtasks: [],
-          comments: [],
+          subtasks: projectData.subtasks || [],
+          comments: projectData.comments || [],
+          timeEntries: projectData.timeEntries || [],
+          totalTimeSpent: projectData.totalTimeSpent || 0,
         };
         setLocalProjects(prev => [...prev, newProject]);
       }
@@ -991,18 +1007,24 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.client.trim() || !formData.websiteType.trim()) return;
-    onSave({ 
-      ...formData, 
-      subtasks, 
-      comments,
-      timeEntries,
-      totalTimeSpent,
-      activeTimerStart,
-      timeEstimate: formData.timeEstimate
-    });
+    
+    try {
+      await onSave({ 
+        ...formData, 
+        subtasks, 
+        comments,
+        timeEntries,
+        totalTimeSpent,
+        activeTimerStart,
+        timeEstimate: formData.timeEstimate
+      });
+    } catch (error) {
+      console.error('Error saving project:', error);
+      alert('Error saving project. Please check the console for details.');
+    }
   };
 
   if (!isOpen) return null;

@@ -191,6 +191,19 @@ export default defineSchema({
         createdAt: v.string(),
       })
     ),
+    // Time tracking fields
+    timeEstimate: v.optional(v.number()), // in hours
+    timeEntries: v.optional(v.array(
+      v.object({
+        id: v.string(),
+        startTime: v.string(), // ISO string
+        endTime: v.optional(v.string()), // ISO string
+        notes: v.optional(v.string()),
+        duration: v.number(), // in minutes
+      })
+    )),
+    totalTimeSpent: v.optional(v.number()), // in minutes
+    activeTimerStart: v.optional(v.string()), // ISO string if timer is running
     createdAt: v.string(),
     updatedAt: v.optional(v.string()),
   })

@@ -85,6 +85,18 @@ export const create = mutation({
         createdAt: v.string(),
       })
     )),
+    timeEstimate: v.optional(v.number()),
+    timeEntries: v.optional(v.array(
+      v.object({
+        id: v.string(),
+        startTime: v.string(),
+        endTime: v.optional(v.string()),
+        notes: v.optional(v.string()),
+        duration: v.number(),
+      })
+    )),
+    totalTimeSpent: v.optional(v.number()),
+    activeTimerStart: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Get the next order number for the stage
@@ -99,6 +111,8 @@ export const create = mutation({
       ...args,
       subtasks: args.subtasks || [],
       comments: args.comments || [],
+      timeEntries: args.timeEntries || [],
+      totalTimeSpent: args.totalTimeSpent || 0,
       order,
       createdAt: new Date().toISOString(),
     });
@@ -138,6 +152,18 @@ export const update = mutation({
         createdAt: v.string(),
       })
     )),
+    timeEstimate: v.optional(v.number()),
+    timeEntries: v.optional(v.array(
+      v.object({
+        id: v.string(),
+        startTime: v.string(),
+        endTime: v.optional(v.string()),
+        notes: v.optional(v.string()),
+        duration: v.number(),
+      })
+    )),
+    totalTimeSpent: v.optional(v.number()),
+    activeTimerStart: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
