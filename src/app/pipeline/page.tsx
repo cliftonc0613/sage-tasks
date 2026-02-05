@@ -64,6 +64,10 @@ type WebProject = {
   assignee: "clifton" | "sage" | "unassigned";
   subtasks: { id: string; title: string; completed: boolean }[];
   comments: { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string }[];
+  timeEstimate?: number;
+  timeEntries?: { id: string; startTime: string; endTime?: string; notes?: string; duration: number }[];
+  totalTimeSpent?: number;
+  activeTimerStart?: string;
 };
 
 // Web design specific columns
