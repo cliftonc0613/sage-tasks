@@ -559,6 +559,70 @@ export default function PipelinePage() {
                 <option value="sage">🌿 Sage</option>
               </select>
 
+              {/* Template Quick Create Dropdown */}
+              {projectTemplates && projectTemplates.length > 0 && (
+                <select
+                  onChange={async (e) => {
+                    if (e.target.value) {
+                      try {
+                        // Create project directly from template
+                        await createProjectFromTemplate({
+                          templateId: e.target.value,
+                          client: "New Client", // Will need to edit after creation
+                          stage: "lead"
+                        });
+                        // Reset dropdown
+                        e.target.value = '';
+                      } catch (error) {
+                        console.error('Error creating from template:', error);
+                        alert('Error creating project from template. Please try again.');
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                  className="template-quick-dropdown"
+                  title="Quick create from template"
+                >
+                  <option value="">🎨 Templates...</option>
+                  <optgroup label="🏢 Business">
+                    {projectTemplates.filter(t => t.projectMetadata?.projectCategory === 'business').map(template => (
+                      <option key={template._id} value={template._id}>
+                        {template.name} ({template.projectMetadata?.estimatedHours || 'N/A'}h)
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🛒 E-commerce">
+                    {projectTemplates.filter(t => t.projectMetadata?.projectCategory === 'ecommerce').map(template => (
+                      <option key={template._id} value={template._id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="📄 Marketing">
+                    {projectTemplates.filter(t => t.projectMetadata?.projectCategory === 'marketing').map(template => (
+                      <option key={template._id} value={template._id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="📋 Planning">
+                    {projectTemplates.filter(t => t.projectMetadata?.projectCategory === 'Planning').map(template => (
+                      <option key={template._id} value={template._id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="📝 Other">
+                    {projectTemplates.filter(t => !t.projectMetadata?.projectCategory || 
+                      !['business', 'ecommerce', 'marketing', 'Planning'].includes(t.projectMetadata?.projectCategory)).map(template => (
+                      <option key={template._id} value={template._id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              )}
+
               {/* Seed Templates Button - only show if no templates exist */}
               {(!projectTemplates || projectTemplates.length === 0) && (
                 <button
