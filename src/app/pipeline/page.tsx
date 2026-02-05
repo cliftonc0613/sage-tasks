@@ -291,6 +291,14 @@ export default function PipelinePage() {
   };
 
   const handleSaveProject = async (projectData: any) => {
+    if (projectData._delete && editingProject) {
+      // Delete project
+      setProjects(prev => prev.filter(p => p._id !== editingProject._id));
+      setIsModalOpen(false);
+      setEditingProject(null);
+      return;
+    }
+    
     if (editingProject) {
       // Update existing project
       setProjects(prev => prev.map(p => 
@@ -593,6 +601,7 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   onClose: () => void;
   onSave: (data: any) => void;
 }) {
+  const [activeTab, setActiveTab] = useState('details');
   const [formData, setFormData] = useState({
     client: project?.client || '',
     websiteType: project?.websiteType || '',
@@ -670,184 +679,229 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="modal-tabs">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`modal-tab ${activeTab === 'details' ? 'active' : ''}`}
+          >
+            📝 Details
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`modal-tab ${activeTab === 'notes' ? 'active' : ''}`}
+          >
+            📋 Project Notes
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
           <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
-            <div className="form-group">
-              <label className="form-label">Client Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.client}
-                onChange={(e) => setFormData({...formData, client: e.target.value})}
-                className="input"
-                placeholder="e.g., Henderson Plumbing Services"
-              />
-            </div>
+            {/* Details Tab */}
+            {activeTab === 'details' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Client Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.client}
+                    onChange={(e) => setFormData({...formData, client: e.target.value})}
+                    className="input"
+                    placeholder="e.g., Henderson Plumbing Services"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Website Description</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    rows={4}
+                    className="input"
+                    placeholder="Project requirements, special features, client preferences..."
+                    style={{ resize: 'vertical', minHeight: '100px' }}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Assign To</label>
+                    <select
+                      value={formData.assignee}
+                      onChange={(e) => setFormData({...formData, assignee: e.target.value as any})}
+                      className="input"
+                    >
+                      <option value="unassigned">Unassigned</option>
+                      <option value="clifton">👤 Clifton</option>
+                      <option value="sage">🌿 Sage</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Priority</label>
+                    <select
+                      value={formData.priority}
+                      onChange={(e) => setFormData({...formData, priority: e.target.value as any})}
+                      className="input"
+                    >
+                      <option value="low">🟢 Low</option>
+                      <option value="medium">🟡 Medium</option>
+                      <option value="high">🔴 High</option>
+                    </select>
+                  </div>
+                </div>
                 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Website Type *</label>
-                <select
-                  required
-                  value={formData.websiteType}
-                  onChange={(e) => setFormData({...formData, websiteType: e.target.value})}
-                  className="input"
-                >
-                  <option value="">Select type...</option>
-                  <option value="Business Website">Business Website</option>
-                  <option value="E-commerce Store">E-commerce Store</option>
-                  <option value="Portfolio Site">Portfolio Site</option>
-                  <option value="Blog/News Site">Blog/News Site</option>
-                  <option value="Landing Page">Landing Page</option>
-                  <option value="Service Business">Service Business</option>
-                  <option value="Contractor Website">Contractor Website</option>
-                  <option value="Restaurant/Food">Restaurant/Food</option>
-                  <option value="Real Estate">Real Estate</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Budget</label>
-                <input
-                  type="text"
-                  value={formData.budget}
-                  onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                  className="input"
-                  placeholder="e.g., $2,500"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Technology Stack</label>
-                <input
-                  type="text"
-                  value={formData.technology}
-                  onChange={(e) => setFormData({...formData, technology: e.target.value})}
-                  className="input"
-                  placeholder="e.g., HTML/CSS/JS, React, WordPress"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Target Launch Date</label>
-                <input
-                  type="date"
-                  value={formData.launchDate}
-                  onChange={(e) => setFormData({...formData, launchDate: e.target.value})}
-                  className="input"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Priority</label>
-                <select
-                  value={formData.priority}
-                  onChange={(e) => setFormData({...formData, priority: e.target.value as any})}
-                  className="input"
-                >
-                  <option value="low">🟢 Low</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="high">🔴 High</option>
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Assignee</label>
-                <select
-                  value={formData.assignee}
-                  onChange={(e) => setFormData({...formData, assignee: e.target.value as any})}
-                  className="input"
-                >
-                  <option value="unassigned">Unassigned</option>
-                  <option value="clifton">👤 Clifton</option>
-                  <option value="sage">🌿 Sage</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Contact Name</label>
-                <input
-                  type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({...formData, contactName: e.target.value})}
-                  className="input"
-                  placeholder="e.g., Mike Henderson"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Phone</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="input"
-                  placeholder="+1-555-0123"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="input"
-                  placeholder="contact@company.com"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Current Website</label>
-                <input
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({...formData, website: e.target.value})}
-                  className="input"
-                  placeholder="https://currentsite.com"
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Project Notes</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                rows={4}
-                className="input"
-                placeholder="Project requirements, special features, client preferences..."
-                style={{ resize: 'vertical', minHeight: '100px' }}
-              />
-            </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Website Type</label>
+                    <select
+                      required
+                      value={formData.websiteType}
+                      onChange={(e) => setFormData({...formData, websiteType: e.target.value})}
+                      className="input"
+                    >
+                      <option value="">Select type...</option>
+                      <option value="Business Website">Business Website</option>
+                      <option value="E-commerce Store">E-commerce Store</option>
+                      <option value="Portfolio Site">Portfolio Site</option>
+                      <option value="Blog/News Site">Blog/News Site</option>
+                      <option value="Landing Page">Landing Page</option>
+                      <option value="Service Business">Service Business</option>
+                      <option value="Contractor Website">Contractor Website</option>
+                      <option value="Restaurant/Food">Restaurant/Food</option>
+                      <option value="Real Estate">Real Estate</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Launch Date</label>
+                    <input
+                      type="date"
+                      value={formData.launchDate}
+                      onChange={(e) => setFormData({...formData, launchDate: e.target.value})}
+                      className="input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Budget Estimate</label>
+                  <input
+                    type="text"
+                    value={formData.budget}
+                    onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                    className="input"
+                    placeholder="e.g., $2,500"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Notes Tab */}
+            {activeTab === 'notes' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Technology Stack</label>
+                  <input
+                    type="text"
+                    value={formData.technology}
+                    onChange={(e) => setFormData({...formData, technology: e.target.value})}
+                    className="input"
+                    placeholder="e.g., HTML/CSS/JS, React, WordPress"
+                  />
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Contact Name</label>
+                    <input
+                      type="text"
+                      value={formData.contactName}
+                      onChange={(e) => setFormData({...formData, contactName: e.target.value})}
+                      className="input"
+                      placeholder="e.g., Mike Henderson"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Phone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      className="input"
+                      placeholder="+1-555-0123"
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="input"
+                      placeholder="contact@company.com"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Current Website</label>
+                    <input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({...formData, website: e.target.value})}
+                      className="input"
+                      placeholder="https://currentsite.com"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
           </div>
 
           {/* Footer */}
           <div className="modal-footer">
+            {/* Delete button (left side, only for existing projects) */}
+            {project && (
+              <div className="modal-footer-left">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Delete this project?')) {
+                      // Handle delete - call parent delete function
+                      onSave({ ...project, _delete: true });
+                    }
+                  }}
+                  className="btn btn-danger-outline"
+                  title="Delete project"
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            )}
+            
             <div className="modal-footer-right">
               <button
                 type="button"
                 onClick={onClose}
                 className="btn btn-secondary"
               >
-                Cancel
+                {project ? 'Close' : 'Cancel'}
               </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={!formData.client.trim() || !formData.websiteType.trim()}
-              >
-                {project ? 'Update Project' : 'Create Project'}
-              </button>
+              {!project && (
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!formData.client.trim() || !formData.websiteType.trim()}
+                >
+                  Create Project
+                </button>
+              )}
             </div>
           </div>
         </form>
