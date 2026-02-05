@@ -5,12 +5,13 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 interface SidebarProps {
-  activePage: 'dashboard' | 'board' | 'calendar';
+  activePage: 'dashboard' | 'board' | 'calendar' | 'pipeline';
 }
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
   { id: 'board', label: 'Board', href: '/', icon: BoardIcon },
+  { id: 'pipeline', label: 'Pipeline', href: '/pipeline', icon: PipelineIcon },
   { id: 'list', label: 'List', href: '/list', icon: ListIcon },
   { id: 'calendar', label: 'Calendar', href: '/calendar', icon: CalendarIcon },
 ];
@@ -119,6 +120,14 @@ function CalendarIcon() {
   return (
     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function PipelineIcon() {
+  return (
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
     </svg>
   );
 }

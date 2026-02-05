@@ -1,10 +1,50 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { DragDropContext, DropResult, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { useQuery, useMutation } from 'convex/react';
+import { useRouter } from 'next/navigation';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
+import { PipelineColumn } from './PipelineColumn';
+import { ProspectModal } from './ProspectModal';
+import { Sidebar } from './Sidebar';
+import { BottomNav } from './BottomNav';
+import { MobileHeader } from './MobileHeader';
+
+// Export prospects to CSV
+function exportToCSV(prospects: Prospect[]) {
+  const headers = ['Title', 'Company', 'Contact Name', 'Phone', 'Email', 'Website', 'Industry', 'Location', 'Stage', 'Urgency', 'Notes', 'Created At'];
+  const rows = prospects.map(p => [
+    p.title,
+    p.company,
+    p.contactName || '',
+    p.phone || '',
+    p.email || '',
+    p.website || '',
+    p.industry || '',
+    p.location || '',
+    p.stage,
+    p.urgency,
+    p.notes?.replace(/"/g, '""') || '',
+    p.createdAt,
+  ]);
+  
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `sales-pipeline-${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
 type Prospect = {
   _id: Id<"prospects">;
@@ -28,18 +68,18 @@ type Prospect = {
   updatedAt?: string;
 };
 
-const pipelineStages = [
-  { id: 'lead', label: 'Lead', color: 'bg-blue-600' },
-  { id: 'site_built', label: 'Site Built', color: 'bg-purple-600' },
-  { id: 'outreach', label: 'Outreach', color: 'bg-orange-600' },
-  { id: 'contacted', label: 'Contacted', color: 'bg-yellow-600' },
-  { id: 'follow_up', label: 'Follow Up', color: 'bg-indigo-600' },
-  { id: 'negotiating', label: 'Negotiating', color: 'bg-pink-600' },
-  { id: 'closed_won', label: 'Closed Won', color: 'bg-green-600' },
-  { id: 'closed_lost', label: 'Closed Lost', color: 'bg-red-600' }
+const columns = [
+  { id: 'lead', title: 'Lead', color: 'bg-blue-600' },
+  { id: 'site_built', title: 'Site Built', color: 'bg-purple-600' },
+  { id: 'outreach', title: 'Outreach', color: 'bg-orange-600' },
+  { id: 'contacted', title: 'Contacted', color: 'bg-yellow-600' },
+  { id: 'follow_up', title: 'Follow Up', color: 'bg-indigo-600' },
+  { id: 'negotiating', title: 'Negotiating', color: 'bg-pink-600' },
+  { id: 'closed_won', title: 'Closed Won', color: 'bg-green-600' },
+  { id: 'closed_lost', title: 'Closed Lost', color: 'bg-red-600' }
 ] as const;
 
-export default function SalesPipeline() {
+export function SalesPipeline() {
   const prospects = useQuery(api.prospects.list);
   const stats = useQuery(api.prospects.stats);
   const createProspect = useMutation(api.prospects.create);
@@ -49,34 +89,61 @@ export default function SalesPipeline() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
-  const [targetStage, setTargetStage] = useState<string>('lead');
+  const [targetColumn, setTargetColumn] = useState<string>('lead');
+  const [filter, setFilter] = useState<'all' | 'fresh' | 'warm' | 'cold'>('all');
+  const [selectedProspects, setSelectedProspects] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const router = useRouter();
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
 
-  const getProspectsByStage = useCallback((stageId: string) => {
-    return prospects?.filter(p => p.stage === stageId) || [];
-  }, [prospects]);
+  // Bulk selection handlers
+  const toggleProspectSelection = useCallback((prospectId: string) => {
+    setSelectedProspects(prev => {
+      const next = new Set(prev);
+      if (next.has(prospectId)) {
+        next.delete(prospectId);
+      } else {
+        next.add(prospectId);
+      }
+      return next;
+    });
+  }, []);
 
-  const getUrgencyColor = (urgency: Prospect['urgency']) => {
-    switch(urgency) {
-      case 'fresh': return 'bg-green-100 text-green-800';
-      case 'warm': return 'bg-yellow-100 text-yellow-800';
-      case 'cold': return 'bg-red-100 text-red-800';
-      case 'no_contact': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const clearSelection = useCallback(() => {
+    setSelectedProspects(new Set());
+    setSelectMode(false);
+  }, []);
+
+  const handleBulkMove = async (newStage: Prospect['stage']) => {
+    // Note: This would need a bulk move operation in the backend
+    for (const id of selectedProspects) {
+      await moveProspect({ 
+        id: id as Id<"prospects">, 
+        newStage,
+        newOrder: 0 // Would need to calculate proper order
+      });
+    }
+    clearSelection();
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedProspects.size} prospects?`)) return;
+    for (const id of selectedProspects) {
+      await deleteProspect({ id: id as Id<"prospects"> });
+    }
+    clearSelection();
+  };
+
+  const handleExport = () => {
+    if (prospects) {
+      exportToCSV(prospects);
     }
   };
 
-  const getDaysAgo = (dateStr: string) => {
-    const diffTime = Date.now() - new Date(dateStr).getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
   const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
+    const { destination, source, draggableId } = result;
 
-    const { source, destination, draggableId } = result;
-
-    // If dropped in the same position, do nothing
+    if (!destination) return;
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -89,8 +156,8 @@ export default function SalesPipeline() {
     });
   };
 
-  const handleAddProspect = (stageId: string) => {
-    setTargetStage(stageId);
+  const handleAddProspect = (columnId: string) => {
+    setTargetColumn(columnId);
     setEditingProspect(null);
     setIsModalOpen(true);
   };
@@ -105,435 +172,293 @@ export default function SalesPipeline() {
     await deleteProspect({ id: prospectId as Id<"prospects"> });
   };
 
-  if (!prospects) {
+  const handleSaveProspect = async (prospectData: {
+    title: string;
+    company: string;
+    contactName?: string;
+    phone?: string;
+    email?: string;
+    website?: string;
+    facebookUrl?: string;
+    githubRepo?: string;
+    loomUrl?: string;
+    industry?: string;
+    location?: string;
+    lastContacted?: string;
+    notes?: string;
+    urgency: 'fresh' | 'warm' | 'cold' | 'no_contact';
+  }) => {
+    if (editingProspect) {
+      await updateProspect({
+        id: editingProspect._id,
+        ...prospectData,
+      });
+    } else {
+      await createProspect({
+        stage: targetColumn as Prospect['stage'],
+        ...prospectData,
+      });
+    }
+  };
+
+  const getProspectsForColumn = (columnId: string) => {
+    if (!prospects) return [];
+    return prospects
+      .filter((prospect) => prospect.stage === columnId)
+      .filter((prospect) => {
+        if (filter === 'all') return true;
+        return prospect.urgency === filter;
+      })
+      .filter((prospect) => {
+        // Mobile search filter
+        if (!mobileSearchQuery.trim()) return true;
+        const query = mobileSearchQuery.toLowerCase();
+        return (
+          prospect.title.toLowerCase().includes(query) ||
+          prospect.company.toLowerCase().includes(query) ||
+          prospect.contactName?.toLowerCase().includes(query) ||
+          prospect.industry?.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => a.order - b.order);
+  };
+
+  const totalProspects = prospects?.length || 0;
+  const freshCount = prospects?.filter(p => p.urgency === 'fresh').length || 0;
+  const warmCount = prospects?.filter(p => p.urgency === 'warm').length || 0;
+  const coldCount = prospects?.filter(p => p.urgency === 'cold').length || 0;
+  const wonCount = prospects?.filter(p => p.stage === 'closed_won').length || 0;
+  const lostCount = prospects?.filter(p => p.stage === 'closed_lost').length || 0;
+
+  if (prospects === undefined) {
     return (
-      <div className="flex-1 bg-[#0f0f12] flex items-center justify-center">
-        <div className="text-gray-400">Loading prospects...</div>
+      <div className="app-container">
+        <Sidebar activePage="pipeline" />
+        <div className="main-content">
+          <div className="loading">
+            <div className="loading-spinner" />
+            <span>Loading...</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-hidden bg-[#0f0f12]">
-      {/* Header */}
-      <div className="border-b border-gray-800 bg-[#18181b] px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-100">Sales Pipeline</h2>
-            <p className="text-sm text-gray-400">
-              Track prospects through your sales process
-            </p>
-            {stats && (
-              <p className="text-xs text-gray-500 mt-1">
-                {stats.total} total • {stats.closed_won} won • {stats.closed_lost} lost
-              </p>
-            )}
-          </div>
-          <button 
-            onClick={() => handleAddProspect('lead')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-          >
-            <span>+</span>
-            New Prospect
-          </button>
-        </div>
-      </div>
-
-      {/* Pipeline Board */}
-      <div className="flex-1 overflow-x-auto">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-6 p-6 min-w-max">
-            {pipelineStages.map(stage => {
-              const stageProspects = getProspectsByStage(stage.id);
-              return (
-                <div key={stage.id} className="w-80 bg-[#18181b] rounded-lg border border-gray-800">
-                  {/* Stage Header */}
-                  <div className="p-4 border-b border-gray-800">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${stage.color}`} />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-100">{stage.label}</h3>
-                        <p className="text-sm text-gray-400">{stageProspects.length} prospects</p>
-                      </div>
-                      <button
-                        onClick={() => handleAddProspect(stage.id)}
-                        className="w-6 h-6 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white text-sm flex items-center justify-center"
-                        title="Add prospect"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Prospects */}
-                  <Droppable droppableId={stage.id}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`p-4 space-y-3 max-h-96 overflow-y-auto ${
-                          snapshot.isDraggingOver ? 'bg-gray-800/50' : ''
-                        }`}
-                      >
-                        {stageProspects.map((prospect, index) => (
-                          <Draggable
-                            key={prospect._id}
-                            draggableId={prospect._id}
-                            index={index}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`p-4 bg-[#1f1f23] rounded-lg border border-gray-700 hover:border-gray-600 cursor-pointer transition-colors ${
-                                  snapshot.isDragging ? 'shadow-lg bg-gray-700' : ''
-                                }`}
-                                onClick={() => handleEditProspect(prospect)}
-                              >
-                                {/* Header */}
-                                <div className="flex items-start justify-between mb-2">
-                                  <h4 className="font-medium text-gray-100 text-sm">{prospect.title}</h4>
-                                  <div className="flex items-center gap-1">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(prospect.urgency)}`}>
-                                      {prospect.urgency}
-                                    </span>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteProspect(prospect._id);
-                                      }}
-                                      className="ml-1 w-5 h-5 rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 text-xs flex items-center justify-center"
-                                    >
-                                      ×
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Company & Contact */}
-                                <div className="mb-3">
-                                  <p className="text-sm font-medium text-gray-200">{prospect.company}</p>
-                                  {prospect.contactName && (
-                                    <p className="text-xs text-gray-400">{prospect.contactName}</p>
-                                  )}
-                                  {prospect.location && (
-                                    <p className="text-xs text-gray-400">{prospect.location}</p>
-                                  )}
-                                </div>
-
-                                {/* Contact Methods */}
-                                <div className="flex items-center gap-2 mb-3">
-                                  {prospect.phone && (
-                                    <a 
-                                      href={`tel:${prospect.phone}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-green-400 hover:text-green-300 text-sm"
-                                      title="Call"
-                                    >
-                                      📞
-                                    </a>
-                                  )}
-                                  {prospect.email && (
-                                    <a 
-                                      href={`mailto:${prospect.email}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-blue-400 hover:text-blue-300 text-sm"
-                                      title="Email"
-                                    >
-                                      📧
-                                    </a>
-                                  )}
-                                  {prospect.website && (
-                                    <a 
-                                      href={prospect.website}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-gray-400 hover:text-gray-300 text-sm"
-                                      title="Website"
-                                    >
-                                      🌐
-                                    </a>
-                                  )}
-                                  {prospect.githubRepo && (
-                                    <a 
-                                      href={`https://github.com/${prospect.githubRepo}`}
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-gray-400 hover:text-gray-300 text-sm"
-                                      title="GitHub"
-                                    >
-                                      💻
-                                    </a>
-                                  )}
-                                  {prospect.facebookUrl && (
-                                    <a 
-                                      href={prospect.facebookUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer" 
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-blue-500 hover:text-blue-400 text-sm"
-                                      title="Facebook"
-                                    >
-                                      📘
-                                    </a>
-                                  )}
-                                </div>
-
-                                {/* Industry Tag */}
-                                {prospect.industry && (
-                                  <div className="mb-2">
-                                    <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
-                                      {prospect.industry}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Last Contacted */}
-                                {prospect.lastContacted && (
-                                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                                    <span>📅</span>
-                                    <span>{getDaysAgo(prospect.lastContacted)} days ago</span>
-                                  </div>
-                                )}
-
-                                {/* Notes Preview */}
-                                {prospect.notes && (
-                                  <p className="text-xs text-gray-300 mt-2 line-clamp-2">
-                                    {prospect.notes}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
-          </div>
-        </DragDropContext>
-      </div>
-
-      {/* Simple Modal for Add/Edit Prospect */}
-      {isModalOpen && <ProspectModal 
-        prospect={editingProspect}
-        targetStage={targetStage}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingProspect(null);
-        }}
-        onSave={async (data) => {
-          if (editingProspect) {
-            await updateProspect({
-              id: editingProspect._id,
-              ...data,
-            });
-          } else {
-            await createProspect({
-              stage: targetStage as Prospect['stage'],
-              ...data,
-            });
-          }
-          setIsModalOpen(false);
-          setEditingProspect(null);
-        }}
-      />}
-    </div>
-  );
-}
-
-// Simple modal component for adding/editing prospects
-function ProspectModal({ prospect, targetStage, onClose, onSave }: {
-  prospect: Prospect | null;
-  targetStage: string;
-  onClose: () => void;
-  onSave: (data: any) => void;
-}) {
-  const [formData, setFormData] = useState({
-    title: prospect?.title || '',
-    company: prospect?.company || '',
-    contactName: prospect?.contactName || '',
-    phone: prospect?.phone || '',
-    email: prospect?.email || '',
-    website: prospect?.website || '',
-    facebookUrl: prospect?.facebookUrl || '',
-    githubRepo: prospect?.githubRepo || '',
-    industry: prospect?.industry || '',
-    location: prospect?.location || '',
-    notes: prospect?.notes || '',
-    urgency: prospect?.urgency || 'fresh' as const,
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-[#18181b] rounded-lg border border-gray-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-100 mb-4">
-            {prospect ? 'Edit Prospect' : 'New Prospect'}
-          </h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+    <div className="app-container">
+      <MobileHeader 
+        title="Pipeline" 
+        onAddTask={() => handleAddProspect('lead')}
+        searchQuery={mobileSearchQuery}
+        onSearchChange={setMobileSearchQuery}
+      />
+      <Sidebar activePage="pipeline" />
+      <div className="main-content">
+        {/* Header */}
+        <header className="header">
+          <div className="header-top">
+            {/* Logo & Title */}
+            <div className="header-title">
+              <div className="logo">🎯</div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                  placeholder="e.g., Henderson Plumbing Website"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Company *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.company}
-                  onChange={(e) => setFormData({...formData, company: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                  placeholder="e.g., Henderson Plumbing Services"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Contact Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({...formData, contactName: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Website
-                </label>
-                <input
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({...formData, website: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Industry
-                </label>
-                <input
-                  type="text"
-                  value={formData.industry}
-                  onChange={(e) => setFormData({...formData, industry: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                  placeholder="e.g., plumbing, landscaping"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                  placeholder="e.g., Greenville, SC"
-                />
+                <h1>Sales Pipeline</h1>
+                <p className="header-subtitle">Prospect Management</p>
               </div>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
-                placeholder="Additional notes..."
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Urgency
-              </label>
+
+            {/* Actions */}
+            <div className="header-actions">
+              <button
+                onClick={() => setSelectMode(!selectMode)}
+                className={`btn btn-ghost btn-icon ${selectMode ? 'active' : ''}`}
+                title="Multi-select mode"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </button>
+
+              <button
+                onClick={handleExport}
+                className="btn btn-ghost btn-icon"
+                title="Export to CSV"
+              >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+
+              {/* Desktop Search */}
+              <div className="search-input desktop-search">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search prospects..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
+                  className="input"
+                />
+                {mobileSearchQuery && (
+                  <button
+                    onClick={() => setMobileSearchQuery('')}
+                    className="search-clear-btn"
+                    aria-label="Clear search"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              
               <select
-                value={formData.urgency}
-                onChange={(e) => setFormData({...formData, urgency: e.target.value as any})}
-                className="w-full px-3 py-2 bg-[#1f1f23] border border-gray-700 rounded-lg text-gray-100"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="filter-select"
               >
-                <option value="fresh">Fresh</option>
-                <option value="warm">Warm</option>
-                <option value="cold">Cold</option>
-                <option value="no_contact">No Contact</option>
+                <option value="all">All Prospects</option>
+                <option value="fresh">🔥 Fresh</option>
+                <option value="warm">⚡ Warm</option>
+                <option value="cold">❄️ Cold</option>
               </select>
-            </div>
-            
-            <div className="flex gap-3 pt-4">
+
               <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                onClick={() => handleAddProspect('lead')}
+                className="btn btn-primary"
               >
-                {prospect ? 'Update' : 'Create'} Prospect
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-medium"
-              >
-                Cancel
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Prospect
               </button>
             </div>
-          </form>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            <div className="stat-item">
+              <div className="stat-value">{totalProspects}</div>
+              <div className="stat-label">Total</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#ef4444' }}>{freshCount}</div>
+              <div className="stat-label">🔥 Fresh</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#f59e0b' }}>{warmCount}</div>
+              <div className="stat-label">⚡ Warm</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#06b6d4' }}>{coldCount}</div>
+              <div className="stat-label">❄️ Cold</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{wonCount}</div>
+              <div className="stat-label">✅ Won</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#dc2626' }}>{lostCount}</div>
+              <div className="stat-label">❌ Lost</div>
+            </div>
+          </div>
+
+          {/* View Tabs */}
+          <div className="nav-tabs">
+            <button className="nav-tab active">
+              Pipeline
+            </button>
+            <button
+              className="nav-tab"
+              onClick={() => router.push('/board')}
+            >
+              Tasks
+            </button>
+          </div>
+        </header>
+
+        {/* Bulk Actions Bar */}
+        {selectedProspects.size > 0 && (
+          <div className="bulk-actions-bar">
+            <div className="bulk-count">
+              <span>{selectedProspects.size} selected</span>
+              <button onClick={clearSelection} className="btn btn-ghost btn-sm">
+                Clear
+              </button>
+            </div>
+            <div className="bulk-buttons">
+              <select
+                onChange={(e) => {
+                  if (e.target.value) handleBulkMove(e.target.value as Prospect['stage']);
+                  e.target.value = '';
+                }}
+                className="bulk-select"
+                defaultValue=""
+              >
+                <option value="" disabled>Move to...</option>
+                <option value="lead">Lead</option>
+                <option value="site_built">Site Built</option>
+                <option value="outreach">Outreach</option>
+                <option value="contacted">Contacted</option>
+                <option value="follow_up">Follow Up</option>
+                <option value="negotiating">Negotiating</option>
+                <option value="closed_won">Closed Won</option>
+                <option value="closed_lost">Closed Lost</option>
+              </select>
+              <button onClick={handleBulkDelete} className="btn btn-danger btn-sm">
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="board-container">
+          {/* Pipeline */}
+          <main className="board">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="board-columns">
+                {columns.map((column) => {
+                  const columnProspects = getProspectsForColumn(column.id);
+
+                  return (
+                    <PipelineColumn
+                      key={column.id}
+                      column={{ id: column.id, title: column.title, color: column.color }}
+                      prospects={columnProspects}
+                      onAddProspect={handleAddProspect}
+                      onEditProspect={handleEditProspect}
+                      onDeleteProspect={handleDeleteProspect}
+                      selectMode={selectMode}
+                      selectedProspects={selectedProspects}
+                      onToggleSelect={toggleProspectSelection}
+                    />
+                  );
+                })}
+              </div>
+            </DragDropContext>
+          </main>
         </div>
+
+        {/* Modal */}
+        <ProspectModal
+          isOpen={isModalOpen}
+          prospect={editingProspect}
+          targetStage={targetColumn}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProspect(null);
+          }}
+          onSave={handleSaveProspect}
+        />
       </div>
+      <BottomNav />
     </div>
   );
 }
