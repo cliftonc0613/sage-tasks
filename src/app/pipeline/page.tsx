@@ -82,68 +82,8 @@ const columns = [
 
 // Using Convex for real-time data - sample projects moved to database
 
-// Temporary sample data until Convex projects table is deployed
-const sampleProjects: WebProject[] = [
-  {
-    _id: '1' as Id<"projects">,
-    client: 'Henderson Plumbing Services',
-    websiteType: 'Business Website',
-    contactName: 'Mike Henderson',
-    phone: '+1-555-0123',
-    email: 'mike@hendersonplumbing.com',
-    website: 'https://cliftonc0613.github.io/henderson-plumbing/',
-    stage: 'closed',
-    budget: '$2,500',
-    technology: 'HTML/CSS/JS',
-    launchDate: '2024-01-15',
-    notes: 'Professional plumbing website',
-    priority: 'high',
-    order: 1,
-    createdAt: '2024-01-01T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [],
-    comments: []
-  },
-  {
-    _id: '2' as Id<"projects">,
-    client: 'Kicking Tree Lawn Care',
-    websiteType: 'Service Business Site',
-    contactName: 'John Tree',
-    phone: '+1-555-0456',
-    email: 'john@kickingtreelawncare.com',
-    website: 'https://kicking-tree-lawn-care.vercel.app/',
-    stage: 'live',
-    budget: '$3,000',
-    technology: 'HTML/CSS/JS + StoryBrand',
-    launchDate: '2024-02-01',
-    notes: 'StoryBrand framework implementation',
-    priority: 'high',
-    order: 1,
-    createdAt: '2024-01-15T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [],
-    comments: []
-  },
-  {
-    _id: '3' as Id<"projects">,
-    client: 'New Heights Tree Service',
-    websiteType: 'Tree Service Website',
-    contactName: 'Sarah Heights',
-    phone: '+1-555-0789',
-    email: 'sarah@newheightstree.com',
-    stage: 'development',
-    budget: '$2,800',
-    technology: 'HTML/CSS/JS',
-    launchDate: '2024-02-15',
-    notes: 'Tree removal service website',
-    priority: 'medium',
-    order: 1,
-    createdAt: '2024-01-20T00:00:00Z',
-    assignee: 'clifton',
-    subtasks: [],
-    comments: []
-  }
-];
+// Empty sample data - pipeline starts clean
+const sampleProjects: WebProject[] = [];
 
 export default function PipelinePage() {
   // Enable Convex for real-time auto-sync
@@ -161,8 +101,8 @@ export default function PipelinePage() {
   const createProjectFromTemplate = useMutation(api.projectTemplates.createProjectFromTemplate);
   const seedWebDevTemplates = useMutation(api.projectTemplates.seedWebDevTemplates);
   
-  // Fallback to local state if projects table doesn't exist yet
-  const [localProjects, setLocalProjects] = useState<WebProject[]>(sampleProjects);
+  // Start with empty projects list
+  const [localProjects, setLocalProjects] = useState<WebProject[]>([]);
   const projectsData = projects !== undefined ? projects : localProjects;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -507,26 +447,9 @@ export default function PipelinePage() {
   };
 
   const getProjectsForColumn = (columnId: string) => {
-    // Show loading state if Convex data is still loading
+    // Return empty array if still loading or no projects
     if (projects === undefined) {
-      // Use sample data while loading to prevent flicker
-      return sampleProjects
-        .filter((project) => project.stage === columnId)
-        .filter((project) => {
-          if (filter === 'all') return true;
-          return project.assignee === filter;
-        })
-        .filter((project) => {
-          if (!mobileSearchQuery.trim()) return true;
-          const query = mobileSearchQuery.toLowerCase();
-          return (
-            project.client.toLowerCase().includes(query) ||
-            project.websiteType.toLowerCase().includes(query) ||
-            project.contactName?.toLowerCase().includes(query) ||
-            project.technology?.toLowerCase().includes(query)
-          );
-        })
-        .sort((a, b) => a.order - b.order);
+      return [];
     }
 
     // Use real data once loaded (projects will be [] if empty, or have real projects)
@@ -550,7 +473,7 @@ export default function PipelinePage() {
   };
 
   // Use consistent data source for stats (same logic as getProjectsForColumn)
-  const statsData = projects !== undefined ? projects : sampleProjects;
+  const statsData = projects !== undefined ? projects : [];
   const totalProjects = statsData?.length || 0;
   const cliftonProjectCount = statsData?.filter(p => p.assignee === 'clifton').length || 0;
   const sageProjectCount = statsData?.filter(p => p.assignee === 'sage').length || 0;
