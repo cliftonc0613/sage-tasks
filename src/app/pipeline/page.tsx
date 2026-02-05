@@ -142,28 +142,19 @@ const sampleProjects: WebProject[] = [
 ];
 
 export default function PipelinePage() {
-  // Temporarily disable Convex for projects until table is deployed
-  // const projects = useQuery(api.projects.list);
-  // const stats = useQuery(api.projects.stats);
-  // const createProject = useMutation(api.projects.create);
-  // const updateProject = useMutation(api.projects.update);
-  // const moveProject = useMutation(api.projects.move);
-  // const deleteProject = useMutation(api.projects.remove);
-  // const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
-  // const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
+  // Enable Convex for real-time auto-sync
+  const projects = useQuery(api.projects.list);
+  const stats = useQuery(api.projects.stats);
+  const createProject = useMutation(api.projects.create);
+  const updateProject = useMutation(api.projects.update);
+  const moveProject = useMutation(api.projects.move);
+  const deleteProject = useMutation(api.projects.remove);
+  const bulkUpdateProjects = useMutation(api.projects.bulkUpdate);
+  const bulkDeleteProjects = useMutation(api.projects.bulkDelete);
   
-  // Use local state until projects table is deployed
+  // Fallback to local state if projects table doesn't exist yet
   const [localProjects, setLocalProjects] = useState<WebProject[]>(sampleProjects);
-  const projects: any = undefined;
-  const stats: any = undefined;
-  const createProject: any = undefined;
-  const updateProject: any = undefined;
-  const moveProject: any = undefined;
-  const deleteProject: any = undefined;
-  const bulkUpdateProjects: any = undefined;
-  const bulkDeleteProjects: any = undefined;
-  
-  const projectsData = localProjects;
+  const projectsData = projects || localProjects;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<WebProject | null>(null);
