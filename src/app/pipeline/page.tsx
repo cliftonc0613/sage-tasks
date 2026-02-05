@@ -753,6 +753,15 @@ export default function PipelinePage() {
   );
 }
 
+// Helper function to create subtasks
+function createSubtask(title: string): { id: string; title: string; completed: boolean } {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    completed: false,
+  };
+}
+
 // Web Project Modal Component
 function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   isOpen: boolean;
@@ -762,6 +771,8 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   onSave: (data: any) => void;
 }) {
   const [activeTab, setActiveTab] = useState('details');
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean }[]>([]);
+  const [newSubtask, setNewSubtask] = useState('');
   const [formData, setFormData] = useState({
     client: project?.client || '',
     websiteType: project?.websiteType || '',
@@ -794,13 +805,33 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
         priority: project?.priority || 'medium',
         assignee: project?.assignee || 'unassigned',
       });
+      setSubtasks(project?.subtasks || []);
+      setActiveTab('details');
     }
   }, [isOpen, project]);
+
+  // Subtask functions
+  const addSubtask = () => {
+    if (newSubtask.trim()) {
+      setSubtasks([...subtasks, createSubtask(newSubtask.trim())]);
+      setNewSubtask('');
+    }
+  };
+
+  const toggleSubtask = (id: string) => {
+    setSubtasks(subtasks.map(s => 
+      s.id === id ? { ...s, completed: !s.completed } : s
+    ));
+  };
+
+  const removeSubtask = (id: string) => {
+    setSubtasks(subtasks.filter(s => s.id !== id));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.client.trim() || !formData.websiteType.trim()) return;
-    onSave(formData);
+    onSave({ ...formData, subtasks });
   };
 
   if (!isOpen) return null;
@@ -846,6 +877,12 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
             className={`modal-tab ${activeTab === 'details' ? 'active' : ''}`}
           >
             📝 Details
+          </button>
+          <button
+            onClick={() => setActiveTab('subtasks')}
+            className={`modal-tab ${activeTab === 'subtasks' ? 'active' : ''}`}
+          >
+            ✅ Subtasks ({subtasks.length})
           </button>
           <button
             onClick={() => setActiveTab('notes')}
@@ -1058,6 +1095,67 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
                     placeholder="e.g., $2,500"
                   />
                 </div>
+              </>
+            )}
+
+            {/* Subtasks Tab */}
+            {activeTab === 'subtasks' && (
+              <>
+                <div className="add-input-row">
+                  <input
+                    type="text"
+                    value={newSubtask}
+                    onChange={(e) => setNewSubtask(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSubtask())}
+                    className="input"
+                    placeholder="Add a subtask..."
+                  />
+                  <button
+                    type="button"
+                    onClick={addSubtask}
+                    className="btn btn-primary"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {subtasks.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No subtasks yet</p>
+                    <p>Break down this project into smaller steps</p>
+                  </div>
+                ) : (
+                  <div className="subtask-list">
+                    {subtasks.map((subtask) => (
+                      <div key={subtask.id} className="subtask-item">
+                        <button
+                          type="button"
+                          onClick={() => toggleSubtask(subtask.id)}
+                          className={`subtask-checkbox ${subtask.completed ? 'checked' : ''}`}
+                        >
+                          {subtask.completed && (
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                        <span className={`subtask-title ${subtask.completed ? 'completed' : ''}`}>
+                          {subtask.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSubtask(subtask.id)}
+                          className="btn btn-ghost btn-icon subtask-delete"
+                          style={{ width: '24px', height: '24px' }}
+                        >
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
