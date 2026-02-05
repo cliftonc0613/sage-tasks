@@ -809,6 +809,15 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   const [newSubtask, setNewSubtask] = useState('');
   const [comments, setComments] = useState<{ id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string; mentions?: string[] }[]>([]);
   const [newComment, setNewComment] = useState('');
+  
+  // Time tracking state
+  const [timeEntries, setTimeEntries] = useState<{ id: string; startTime: string; endTime?: string; notes?: string; duration: number }[]>([]);
+  const [totalTimeSpent, setTotalTimeSpent] = useState(0);
+  const [activeTimerStart, setActiveTimerStart] = useState<string | undefined>();
+  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
+  const [manualTimeMinutes, setManualTimeMinutes] = useState('');
+  const [manualTimeNotes, setManualTimeNotes] = useState('');
+  const [timerNotes, setTimerNotes] = useState('');
   const [formData, setFormData] = useState({
     client: project?.client || '',
     websiteType: project?.websiteType || '',
@@ -822,6 +831,7 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
     notes: project?.notes || '',
     priority: project?.priority || 'medium' as const,
     assignee: project?.assignee || 'unassigned' as const,
+    timeEstimate: project?.timeEstimate || undefined as number | undefined,
   });
 
   // Update form when project changes
@@ -840,12 +850,38 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
         notes: project?.notes || '',
         priority: project?.priority || 'medium',
         assignee: project?.assignee || 'unassigned',
+        timeEstimate: project?.timeEstimate || undefined,
       });
       setSubtasks(project?.subtasks || []);
       setComments(project?.comments || []);
+      // Time tracking
+      setTimeEntries(project?.timeEntries || []);
+      setTotalTimeSpent(project?.totalTimeSpent || 0);
+      setActiveTimerStart(project?.activeTimerStart);
       setActiveTab('details');
+      setManualTimeMinutes('');
+      setManualTimeNotes('');
+      setTimerNotes('');
     }
   }, [isOpen, project]);
+
+  // Timer effect - update elapsed time every second when timer is running
+  useEffect(() => {
+    if (!activeTimerStart) {
+      setElapsedTime(0);
+      return;
+    }
+
+    const updateElapsed = () => {
+      const start = new Date(activeTimerStart).getTime();
+      const now = Date.now();
+      setElapsedTime(Math.floor((now - start) / 1000));
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [activeTimerStart]);
 
   // Subtask functions
   const addSubtask = () => {
@@ -875,10 +911,94 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
     }
   };
 
+  // Time tracking helper functions
+  const formatTimeEstimate = (minutes: number): string => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
+  const formatElapsedTime = (seconds: number): string => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatTimeEntry = (entry: { startTime: string }): string => {
+    const date = new Date(entry.startTime);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Time tracking handlers
+  const handleStartTimer = () => {
+    setActiveTimerStart(new Date().toISOString());
+  };
+
+  const handleStopTimer = () => {
+    if (!activeTimerStart) return;
+    
+    const startTime = new Date(activeTimerStart);
+    const endTime = new Date();
+    const duration = Math.round((endTime.getTime() - startTime.getTime()) / 1000 / 60); // minutes
+    
+    const newEntry = {
+      id: crypto.randomUUID(),
+      startTime: activeTimerStart,
+      endTime: endTime.toISOString(),
+      duration,
+      notes: timerNotes || undefined,
+    };
+    
+    setTimeEntries(prev => [...prev, newEntry]);
+    setTotalTimeSpent(prev => prev + duration);
+    setActiveTimerStart(undefined);
+    setTimerNotes('');
+  };
+
+  const handleAddManualTime = () => {
+    const minutes = parseInt(manualTimeMinutes);
+    if (isNaN(minutes) || minutes <= 0) return;
+    
+    const now = new Date().toISOString();
+    const newEntry = {
+      id: crypto.randomUUID(),
+      startTime: now,
+      endTime: now,
+      duration: minutes,
+      notes: manualTimeNotes || undefined,
+    };
+    
+    setTimeEntries(prev => [...prev, newEntry]);
+    setTotalTimeSpent(prev => prev + minutes);
+    setManualTimeMinutes('');
+    setManualTimeNotes('');
+  };
+
+  const handleDeleteTimeEntry = (entryId: string) => {
+    const entryToDelete = timeEntries.find(e => e.id === entryId);
+    if (entryToDelete) {
+      setTimeEntries(prev => prev.filter(e => e.id !== entryId));
+      setTotalTimeSpent(prev => Math.max(0, prev - entryToDelete.duration));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.client.trim() || !formData.websiteType.trim()) return;
-    onSave({ ...formData, subtasks, comments });
+    onSave({ 
+      ...formData, 
+      subtasks, 
+      comments,
+      timeEntries,
+      totalTimeSpent,
+      activeTimerStart,
+      timeEstimate: formData.timeEstimate
+    });
   };
 
   if (!isOpen) return null;
@@ -937,6 +1057,14 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
           >
             💬 Comments ({comments.length})
           </button>
+          {project && (
+            <button
+              onClick={() => setActiveTab('time')}
+              className={`modal-tab ${activeTab === 'time' ? 'active' : ''} ${activeTimerStart ? 'timer-running' : ''}`}
+            >
+              ⏱️ Time {activeTimerStart && <span className="timer-pulse">●</span>}
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('notes')}
             className={`modal-tab ${activeTab === 'notes' ? 'active' : ''}`}
@@ -1138,15 +1266,44 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Budget Estimate</label>
-                  <input
-                    type="text"
-                    value={formData.budget}
-                    onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                    className="input"
-                    placeholder="e.g., $2,500"
-                  />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Budget Estimate</label>
+                    <input
+                      type="text"
+                      value={formData.budget}
+                      onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                      className="input"
+                      placeholder="e.g., $2,500"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Time Estimate</label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={formData.timeEstimate || ''}
+                        onChange={(e) => setFormData({...formData, timeEstimate: e.target.value ? parseInt(e.target.value) : undefined})}
+                        className="input"
+                        placeholder="hours"
+                        min="1"
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>hours</span>
+                      {formData.timeEstimate && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon"
+                          onClick={() => setFormData({...formData, timeEstimate: undefined})}
+                          title="Clear"
+                          style={{ width: '24px', height: '24px' }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -1257,6 +1414,149 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
                     ))}
                   </div>
                 )}
+              </>
+            )}
+
+            {/* Time Tracking Tab */}
+            {activeTab === 'time' && project && (
+              <>
+                {/* Timer Section */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Timer</h4>
+                  <div className="timer-display">
+                    {activeTimerStart ? (
+                      <>
+                        <div className="timer-clock running">
+                          <span className="timer-value">{formatElapsedTime(elapsedTime)}</span>
+                          <span className="timer-label">elapsed</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={timerNotes}
+                          onChange={(e) => setTimerNotes(e.target.value)}
+                          className="input timer-notes-input"
+                          placeholder="What are you working on?"
+                        />
+                        <button 
+                          onClick={handleStopTimer}
+                          className="btn btn-danger timer-btn"
+                        >
+                          ⏹️ Stop Timer
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={handleStartTimer}
+                        className="btn btn-primary timer-btn"
+                      >
+                        ▶️ Start Timer
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Time Summary */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Summary</h4>
+                  <div className="time-summary">
+                    <div className="time-summary-row">
+                      <span>Time Spent:</span>
+                      <span className="time-value">{formatTimeEstimate(totalTimeSpent)}</span>
+                    </div>
+                    {formData.timeEstimate && (
+                      <>
+                        <div className="time-summary-row">
+                          <span>Estimated:</span>
+                          <span className="time-value">{formatTimeEstimate(formData.timeEstimate * 60)}</span>
+                        </div>
+                        <div className="time-progress-container">
+                          <div className="time-progress-bar">
+                            <div 
+                              className={`time-progress-fill ${(totalTimeSpent / (formData.timeEstimate * 60)) * 100 > 100 ? 'over' : ''}`}
+                              style={{ width: `${Math.min(100, (totalTimeSpent / (formData.timeEstimate * 60)) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`time-progress-label ${(totalTimeSpent / (formData.timeEstimate * 60)) * 100 > 100 ? 'over' : ''}`}>
+                            {Math.round((totalTimeSpent / (formData.timeEstimate * 60)) * 100)}%
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Manual Time */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Add Manual Entry</h4>
+                  <div className="manual-time-form">
+                    <div className="manual-time-row">
+                      <input
+                        type="number"
+                        value={manualTimeMinutes}
+                        onChange={(e) => setManualTimeMinutes(e.target.value)}
+                        className="input manual-time-input"
+                        placeholder="Minutes"
+                        min="1"
+                      />
+                      <input
+                        type="text"
+                        value={manualTimeNotes}
+                        onChange={(e) => setManualTimeNotes(e.target.value)}
+                        className="input"
+                        placeholder="Notes (optional)"
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddManualTime}
+                        className="btn btn-secondary"
+                        disabled={!manualTimeMinutes}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Entries List */}
+                <div className="time-tracking-section">
+                  <h4 className="section-title">Time Entries ({timeEntries.length})</h4>
+                  {timeEntries.length === 0 ? (
+                    <div className="empty-state">
+                      <p>No time entries yet</p>
+                      <p>Start the timer or add time manually</p>
+                    </div>
+                  ) : (
+                    <div className="time-entries-list">
+                      {[...timeEntries].reverse().map((entry) => (
+                        <div key={entry.id} className="time-entry-item">
+                          <div className="time-entry-info">
+                            <span className="time-entry-duration">
+                              {formatTimeEstimate(entry.duration)}
+                            </span>
+                            <span className="time-entry-date">
+                              {formatTimeEntry(entry)}
+                            </span>
+                            {entry.notes && (
+                              <span className="time-entry-notes">{entry.notes}</span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTimeEntry(entry.id)}
+                            className="btn btn-ghost btn-icon"
+                            title="Delete entry"
+                            style={{ width: '24px', height: '24px' }}
+                          >
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
