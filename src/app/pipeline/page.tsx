@@ -762,6 +762,40 @@ function createSubtask(title: string): { id: string; title: string; completed: b
   };
 }
 
+// Helper function to create comments
+function createComment(content: string, author: "clifton" | "sage"): { id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string; mentions?: string[] } {
+  // Parse @mentions
+  const mentionRegex = /@(clifton|sage)/gi;
+  const mentions = [...content.matchAll(mentionRegex)].map(m => m[1].toLowerCase());
+  
+  return {
+    id: crypto.randomUUID(),
+    author,
+    content,
+    createdAt: new Date().toISOString(),
+    mentions: mentions.length > 0 ? mentions : undefined,
+  };
+}
+
+// Helper function to render comment content with mentions
+function renderCommentContent(content: string): React.ReactNode {
+  // Highlight @mentions
+  const parts = content.split(/(@(?:clifton|sage))/gi);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.toLowerCase() === '@clifton') {
+          return <span key={i} className="mention mention-clifton">@Clifton</span>;
+        }
+        if (part.toLowerCase() === '@sage') {
+          return <span key={i} className="mention mention-sage">@Sage</span>;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 // Web Project Modal Component
 function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   isOpen: boolean;
@@ -773,6 +807,8 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
   const [activeTab, setActiveTab] = useState('details');
   const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean }[]>([]);
   const [newSubtask, setNewSubtask] = useState('');
+  const [comments, setComments] = useState<{ id: string; author: "clifton" | "sage" | "system"; content: string; createdAt: string; mentions?: string[] }[]>([]);
+  const [newComment, setNewComment] = useState('');
   const [formData, setFormData] = useState({
     client: project?.client || '',
     websiteType: project?.websiteType || '',
@@ -806,6 +842,7 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
         assignee: project?.assignee || 'unassigned',
       });
       setSubtasks(project?.subtasks || []);
+      setComments(project?.comments || []);
       setActiveTab('details');
     }
   }, [isOpen, project]);
@@ -828,10 +865,20 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
     setSubtasks(subtasks.filter(s => s.id !== id));
   };
 
+  // Comment functions
+  const addComment = () => {
+    if (newComment.trim()) {
+      const commentContent = newComment.trim();
+      // For now, always use 'clifton' as the author - could be made dynamic later
+      setComments([...comments, createComment(commentContent, 'clifton')]);
+      setNewComment('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.client.trim() || !formData.websiteType.trim()) return;
-    onSave({ ...formData, subtasks });
+    onSave({ ...formData, subtasks, comments });
   };
 
   if (!isOpen) return null;
@@ -883,6 +930,12 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
             className={`modal-tab ${activeTab === 'subtasks' ? 'active' : ''}`}
           >
             ✅ Subtasks ({subtasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('comments')}
+            className={`modal-tab ${activeTab === 'comments' ? 'active' : ''}`}
+          >
+            💬 Comments ({comments.length})
           </button>
           <button
             onClick={() => setActiveTab('notes')}
@@ -1152,6 +1205,54 @@ function WebProjectModal({ isOpen, project, targetStage, onClose, onSave }: {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Comments Tab */}
+            {activeTab === 'comments' && (
+              <>
+                <div className="add-input-row">
+                  <input
+                    type="text"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addComment())}
+                    className="input"
+                    placeholder="Add a comment... (use @sage or @clifton to mention)"
+                  />
+                  <button
+                    type="button"
+                    onClick={addComment}
+                    className="btn btn-primary"
+                  >
+                    Post
+                  </button>
+                </div>
+
+                {comments.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No comments yet</p>
+                    <p>Start a discussion about this project</p>
+                  </div>
+                ) : (
+                  <div className="comment-list">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="comment-item">
+                        <div className="comment-header">
+                          <span className={`comment-author ${comment.author}`}>
+                            {comment.author === 'sage' ? '🌿 Sage' : comment.author === 'system' ? '🤖 System' : '👤 Clifton'}
+                          </span>
+                          <span className="comment-date">
+                            {new Date(comment.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="comment-content">
+                          {renderCommentContent(comment.content)}
+                        </p>
                       </div>
                     ))}
                   </div>
