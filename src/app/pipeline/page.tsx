@@ -50,53 +50,128 @@ export default function PipelinePage() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Sales Pipeline</h1>
-      
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div style={{ display: 'flex', gap: '20px', overflowX: 'auto' }}>
-          {stages.map(stage => {
-            const stageProspects = getProspectsForStage(stage.id);
-            
-            return (
-              <div key={stage.id} style={{ minWidth: '250px', backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '8px' }}>
-                <h3>{stage.title} ({stageProspects.length})</h3>
-                
-                <Droppable droppableId={stage.id}>
-                  {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
-                      {stageProspects.map((prospect, index) => (
-                        <Draggable key={prospect.id} draggableId={prospect.id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              style={{
-                                backgroundColor: 'white',
-                                padding: '10px',
-                                margin: '5px 0',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                cursor: 'pointer',
-                                ...provided.draggableProps.style
-                              }}
-                            >
-                              <h4 style={{ margin: '0 0 5px 0', fontSize: '14px' }}>{prospect.title}</h4>
-                              <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>{prospect.company}</p>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+    <div className="app-container">
+      <div className="main-content">
+        {/* Header */}
+        <header className="header">
+          <div className="header-top">
+            <div className="header-title">
+              <div className="logo">🎯</div>
+              <div>
+                <h1>Sales Pipeline</h1>
+                <p className="header-subtitle">Prospect Management</p>
               </div>
-            );
-          })}
+            </div>
+            <div className="header-actions">
+              <button className="btn btn-primary">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New Prospect
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Bar */}
+          <div className="stats-bar">
+            <div className="stat-item">
+              <div className="stat-value">{prospects.length}</div>
+              <div className="stat-label">Total</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: 'var(--status-complete)' }}>{prospects.filter(p => p.stage === 'closed_won').length}</div>
+              <div className="stat-label">✅ Won</div>
+            </div>
+            <div className="stat-divider" />
+            <div className="stat-item">
+              <div className="stat-value" style={{ color: '#dc2626' }}>{prospects.filter(p => p.stage === 'closed_lost').length}</div>
+              <div className="stat-label">❌ Lost</div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="nav-tabs">
+            <button className="nav-tab active">Pipeline</button>
+            <button className="nav-tab">Tasks</button>
+          </div>
+        </header>
+
+        {/* Pipeline Board */}
+        <div className="board-container">
+          <main className="board">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="board-columns">
+                {stages.map(stage => {
+                  const stageProspects = getProspectsForStage(stage.id);
+                  
+                  return (
+                    <div key={stage.id} className="column">
+                      {/* Column Header */}
+                      <div className="column-header">
+                        <div className="column-title">
+                          <div className="column-icon" />
+                          <h3>{stage.title}</h3>
+                          <span className="column-count">{stageProspects.length}</span>
+                        </div>
+                        <button className="btn btn-ghost btn-icon" title="Add prospect">
+                          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      {/* Droppable Area */}
+                      <Droppable droppableId={stage.id}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`column-content ${snapshot.isDraggingOver ? 'drag-over' : ''}`}
+                          >
+                            {stageProspects.length === 0 && !snapshot.isDraggingOver && (
+                              <div className="column-empty">
+                                <div className="column-empty-icon">📝</div>
+                                <span>No prospects</span>
+                              </div>
+                            )}
+                            {stageProspects.map((prospect, index) => (
+                              <Draggable key={prospect.id} draggableId={prospect.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
+                                  >
+                                    <h4 className="task-card-title">{prospect.title}</h4>
+                                    <p className="task-card-desc">{prospect.company}</p>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+
+                      {/* Column Footer */}
+                      <div className="column-footer">
+                        <button className="add-task-btn">
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Add Prospect
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </DragDropContext>
+          </main>
         </div>
-      </DragDropContext>
+      </div>
     </div>
   );
 }
